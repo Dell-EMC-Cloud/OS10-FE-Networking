@@ -35,149 +35,33 @@ def list_opts():
     return [('agent', agent_config.AGENT_STATE_OPTS)]
 
 
-def _get_notification_transport_url():
-    url = urlparse.urlparse(CONF.transport_url)
-    if CONF.oslo_messaging_rabbit.amqp_auto_delete is False:
-        q = urlparse.parse_qs(url.query)
-        q.update({'amqp_auto_delete': ['true']})
-        query = urlparse.urlencode({k: v[0] for k, v in q.items()})
-        url = url._replace(query=query)
-    return urlparse.urlunparse(url)
-
-
-def _set_up_notifier(transport, uuid):
-    return oslo_messaging.Notifier(
-        transport,
-        publisher_id='os10-fe-neutron-agent-' + uuid,
-        driver='messagingv2',
-        topics=['os10-fe-neutron-agent-member-manager'])
-
-
-def _set_up_listener(transport, agent_id):
-    targets = [
-        oslo_messaging.Target(topic='os10-fe-neutron-agent-member-manager')]
-    endpoints = [HashRingMemberManagerNotificationEndpoint()]
-    return oslo_messaging.get_notification_listener(
-        transport, targets, endpoints, executor='eventlet', pool=agent_id)
-
-
-class HashRingMemberManagerNotificationEndpoint(object):
-    """Class variables members and hashring is shared by all instances"""
-
-    filter_rule = oslo_messaging.NotificationFilter(
-        publisher_id='^os10-fe-neutron-agent.*')
-
-    members = []
-    hashring = hashring.HashRing([])
-
-    def info(self, ctxt, publisher_id, event_type, payload, metadata):
-
-        timestamp = timeutils.utcnow_ts()
-        # Add members or update timestamp for existing members
-        if not payload['id'] in [x['id'] for x in self.members]:
-            try:
-                LOG.info('Adding member id %s on host %s to hashring.',
-                         payload['id'], payload['host'])
-                self.hashring.add_node(payload['id'])
-                self.members.append(payload)
-            except Exception:
-                LOG.exception('Failed to add member %s to hash ring!',
-                              payload['id'])
-        else:
-            for member in self.members:
-                if payload['id'] == member['id']:
-                    member['timestamp'] = payload['timestamp']
-
-        # Remove members that have not checked in for a while
-        for member in self.members:
-            if (timestamp - member['timestamp']) > (
-                    CONF.AGENT.report_interval * 3):
-                try:
-                    LOG.info('Removing member %s on host %s from hashring.',
-                             member['id'], member['host'])
-                    self.hashring.remove_node(member['id'])
-                    self.members.remove(member)
-                except Exception:
-                    LOG.exception('Failed to remove member %s from hash ring!',
-                                  member['id'])
-
-        return oslo_messaging.NotificationResult.HANDLED
-
-
 class OS10FENeutronAgent(service.ServiceBase):
 
     def __init__(self):
         self.context = context.get_admin_context_without_session()
         self.agent_id = uuidutils.generate_uuid(dashed=True)
         self.agent_host = socket.gethostname()
-
-        # Set up oslo_messaging notifier and listener to keep track of other
-        # members
-        # NOTE(hjensas): Override the control_exchange for the notification
-        # transport to allow setting amqp_auto_delete = true.
-        # TODO(hjensas): Remove this and override the exchange when setting up
-        # the notifier once the fix for bug is available.
-        #   https://bugs.launchpad.net/oslo.messaging/+bug/1814797
-        CONF.set_override('control_exchange', 'os10-fe-neutron-agent')
-        self.transport = oslo_messaging.get_notification_transport(
-            CONF, url=_get_notification_transport_url())
-        self.notifier = _set_up_notifier(self.transport, self.agent_id)
-        # Note(hjensas): We need to have listener consuming the non-pool queue.
-        # See bug: https://bugs.launchpad.net/oslo.messaging/+bug/1814544
-        self.listener = _set_up_listener(self.transport, None)
-        self.pool_listener = _set_up_listener(self.transport, '-'.join(
-            ['ironic-neutron-agent-member-manager-pool', self.agent_id]))
-
-        self.member_manager = HashRingMemberManagerNotificationEndpoint()
-
         self.state_rpc = agent_rpc.PluginReportStateAPI(topics.REPORTS)
-        # self.ironic_client = ironic_client.get_client()
         self.reported_nodes = {}
-        LOG.info('Agent networking-baremetal initialized.')
+        LOG.info('Agent OS10-FE-Networking initialized.')
 
     def start(self):
-        LOG.info('Starting agent networking-baremetal.')
-        self.pool_listener.start()
-        self.listener.start()
-        self.notify_agents = loopingcall.FixedIntervalLoopingCall(
-            self._notify_peer_agents)
-        self.notify_agents.start(interval=(CONF.AGENT.report_interval / 3))
+        LOG.info('Starting agent OS10-FE-Networking.')
         self.heartbeat = loopingcall.FixedIntervalLoopingCall(
             self._report_state)
         self.heartbeat.start(interval=CONF.AGENT.report_interval,
                              initial_delay=CONF.AGENT.report_interval)
 
     def stop(self):
-        LOG.info('Stopping agent networking-baremetal.')
+        LOG.info('Stopping agent OS10-FE-Networking.')
         self.heartbeat.stop()
-        self.notify_agents.stop()
-        self.listener.stop()
-        self.pool_listener.stop()
-        self.listener.wait()
-        self.pool_listener.wait()
 
     def reset(self):
-        LOG.info('Resetting agent networking-baremetal.')
+        LOG.info('Resetting agent OS10-FE-Networking.')
         self.heartbeat.stop()
-        self.notify_agents.stop()
-        self.listener.stop()
-        self.pool_listener.stop()
-        self.listener.wait()
-        self.pool_listener.wait()
 
     def wait(self):
         pass
-
-    def _notify_peer_agents(self):
-        try:
-            self.notifier.info({
-                'ironic-neutron-agent': 'heartbeat'},
-                'ironic-neutron-agent-member-manager',
-                {'id': self.agent_id,
-                 'host': self.agent_host,
-                 'timestamp': timeutils.utcnow_ts()})
-        except Exception:
-            LOG.exception('Failed to send hash ring membership hearbeat!')
 
     def get_template_node_state(self, node_uuid):
         return {
@@ -193,26 +77,9 @@ class OS10FENeutronAgent(service.ServiceBase):
 
     def _report_state(self):
         node_states = {}
-        ironic_ports = self.ironic_client.ports(details=True)
-        # NOTE: the above calls returns a generator, so we need to handle
-        # exceptions that happen just before the first loop iteration, when
-        # the actual request to ironic happens
-        try:
-            for port in ironic_ports:
-                node = port.node_id
-                if (self.agent_id not in
-                        self.member_manager.hashring[node.encode('utf-8')]):
-                    continue
-                template_node_state = self.get_template_node_state(node)
-                node_states.setdefault(node, template_node_state)
-                mapping = node_states[
-                    node]["configurations"]["bridge_mappings"]
-                if port.physical_network is not None:
-                    mapping[port.physical_network] = "yes"
-        except sdk_exc.OpenStackCloudException:
-            LOG.exception("Failed to get ironic ports data! "
-                          "Not reporting state.")
-            return
+        node = self.agent_host
+        template_node_state = self.get_template_node_state(node)
+        node_states.setdefault(node, template_node_state)
 
         for state in node_states.values():
             # If the node was not previously reported with current
@@ -244,10 +111,6 @@ class OS10FENeutronAgent(service.ServiceBase):
 
 def _unregister_deprecated_opts():
     CONF.reset()
-    # CONF.unregister_opts(
-    #     [CONF._groups[ironic_client.IRONIC_GROUP]._opts[opt]['opt']
-    #      for opt in ironic_client._deprecated_opts],
-    #     group=ironic_client.IRONIC_GROUP)
 
 
 def main():
