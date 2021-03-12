@@ -21,6 +21,12 @@ from oslo_service import service
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
 from tooz import hashring
+from neutron.api.rpc.handlers import securitygroups_rpc as sg_rpc
+from neutron.agent import securitygroups_rpc as agent_sg_rpc
+from neutron.plugins.ml2.drivers.l2pop.rpc_manager \
+    import l2population_rpc as l2pop_rpc
+from neutron.plugins.ml2.drivers.agent import _agent_manager_base as amb
+
 
 sys.path.append("/opt/stack/OS10-FE-Networking")
 
@@ -41,16 +47,57 @@ class OS10FENeutronAgent(service.ServiceBase):
         self.context = context.get_admin_context_without_session()
         self.agent_id = uuidutils.generate_uuid(dashed=True)
         self.agent_host = socket.gethostname()
-        self.state_rpc = agent_rpc.PluginReportStateAPI(topics.REPORTS)
         self.reported_nodes = {}
         LOG.info('Agent OS10-FE-Networking initialized.')
 
     def start(self):
         LOG.info('Starting agent OS10-FE-Networking.')
+        self.setup_rpc()
         self.heartbeat = loopingcall.FixedIntervalLoopingCall(
             self._report_state)
         self.heartbeat.start(interval=CONF.AGENT.report_interval,
                              initial_delay=CONF.AGENT.report_interval)
+        self.connection.consume_in_threads()
+
+    def setup_rpc(self):
+        self.plugin_rpc = agent_rpc.PluginApi(topics.PLUGIN)
+        self.sg_plugin_rpc = sg_rpc.SecurityGroupServerRpcApi(topics.PLUGIN)
+        self.sg_agent = agent_sg_rpc.SecurityGroupAgentRpc(
+            self.context, self.sg_plugin_rpc, defer_refresh_firewall=True)
+
+        self.topic = topics.AGENT
+        self.state_rpc = agent_rpc.PluginReportStateAPI(topics.REPORTS)
+        # RPC network init
+        # Handle updates from service
+        self.rpc_callbacks = self.get_rpc_callbacks(self.context, self, self.sg_agent)
+        self.endpoints = [self.rpc_callbacks]
+        self._validate_rpc_endpoints()
+        # Define the listening consumers for the agent
+        consumers = self.get_rpc_consumers()
+        self.connection = agent_rpc.create_consumers(self.endpoints,
+                                                     self.topic,
+                                                     consumers,
+                                                     start_listening=False)
+
+    def get_rpc_consumers(self):
+        consumers = [[topics.PORT, topics.UPDATE],
+                     [topics.NETWORK, topics.DELETE],
+                     [topics.NETWORK, topics.UPDATE],
+                     [topics.SECURITY_GROUP, topics.UPDATE],
+                     [topics.PORT_BINDING, topics.DEACTIVATE],
+                     [topics.PORT_BINDING, topics.ACTIVATE]]
+        return consumers
+
+    def get_rpc_callbacks(self, context, agent, sg_agent):
+        return OS10FERpcCallbacks(context, agent, sg_agent)
+
+    def _validate_rpc_endpoints(self):
+        if not isinstance(self.endpoints[0],
+                          amb.CommonAgentManagerRpcCallBackBase):
+            LOG.error("RPC Callback class must inherit from "
+                      "CommonAgentManagerRpcCallBackBase to ensure "
+                      "CommonAgent works properly.")
+            sys.exit(1)
 
     def stop(self):
         LOG.info('Stopping agent OS10-FE-Networking.')
@@ -63,7 +110,8 @@ class OS10FENeutronAgent(service.ServiceBase):
     def wait(self):
         pass
 
-    def get_template_node_state(self, node_uuid):
+    @staticmethod
+    def get_template_node_state(node_uuid):
         return {
             'binary': constants.OS10FE_BINARY,
             'host': node_uuid,
@@ -91,7 +139,7 @@ class OS10FENeutronAgent(service.ServiceBase):
                          'configuration: %s',
                          state['host'], state['configurations'])
             try:
-                LOG.debug('Reporting state for host: %s with configuration: '
+                LOG.info('Reporting state for host: %s with configuration: '
                           '%s', state['host'], state['configurations'])
                 self.state_rpc.report_state(self.context, state)
             except AttributeError:
@@ -107,6 +155,32 @@ class OS10FENeutronAgent(service.ServiceBase):
                 return
             self.reported_nodes.update(
                 {state['host']: state['configurations']})
+
+
+class OS10FERpcCallbacks(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
+                         amb.CommonAgentManagerRpcCallBackBase):
+
+    # Set RPC API version to 1.0 by default.
+    target = oslo_messaging.Target(version='1.5')
+
+    def network_delete(self, context, **kwargs):
+        LOG.info("network_delete received")
+
+    def network_update(self, context, **kwargs):
+        LOG.info("network_update received")
+
+    def port_update(self, context, **kwargs):
+        LOG.info("port_update received")
+
+    def port_delete(self, context, **kwargs):
+        LOG.info("port_delete received")
+
+    def binding_deactivate(self, context, **kwargs):
+        LOG.info("binding_deactivate received")
+
+    def binding_activate(self, context, **kwargs):
+        LOG.info("binding_activate received")
+
 
 
 def _unregister_deprecated_opts():
