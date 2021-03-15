@@ -26,7 +26,7 @@ from neutron.agent import securitygroups_rpc as agent_sg_rpc
 from neutron.plugins.ml2.drivers.l2pop.rpc_manager \
     import l2population_rpc as l2pop_rpc
 from neutron.plugins.ml2.drivers.agent import _agent_manager_base as amb
-
+from os10_fe_networking.agent.os10_restconf_client import OS10RestconfClient
 
 sys.path.append("/opt/stack/OS10-FE-Networking")
 
@@ -48,6 +48,7 @@ class OS10FENeutronAgent(service.ServiceBase):
         self.agent_id = uuidutils.generate_uuid(dashed=True)
         self.agent_host = socket.gethostname()
         self.reported_nodes = {}
+        self.client = OS10RestconfClient()
         LOG.info('Agent OS10-FE-Networking initialized.')
 
     def start(self):
