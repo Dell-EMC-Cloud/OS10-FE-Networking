@@ -3,10 +3,18 @@ from requests import status_codes
 
 class Interface:
 
-    def __init__(self, desc, enabled):
+    path = "/restconf/data/ietf-interfaces:interfaces"
+    path_get_all = "/restconf/data/ietf-interfaces:interfaces/interface?content=config"
+
+    class Type:
+        VLan = "iana-if-type:l2vlan"
+        PortChannel = "iana-if-type:ieee8023adLag"
+        Ethernet = "iana-if-type:ethernetCsmacd"
+
+    def __init__(self, desc, enabled, if_type):
         self.desc = desc
         self.enabled = enabled
-        self.path = "/restconf/data/ietf-interfaces:interfaces"
+        self.if_type = if_type
 
     def content(self):
         body = {
@@ -20,6 +28,26 @@ class Interface:
 
     def interface_content(self) -> []:
         return []
+
+    @staticmethod
+    def handle_get_all(resp, if_type=None):
+        interface_list = []
+        if resp.status_code == status_codes.codes["ok"]:
+            json_resp = resp.json()
+            for interface in json_resp["ietf-interfaces:interface"]:
+                if if_type is None or interface["type"] == if_type:
+                    interface_list.append(interface)
+
+        return interface_list
+
+    @staticmethod
+    def extract_numeric_id(if_type, if_id):
+        if if_type == Interface.Type.VLan:
+            return VLanInterface.extract_numeric_id(if_id)
+        elif if_type == Interface.Type.PortChannel:
+            return PortChannelInterface.extract_numeric_id(if_id)
+        elif if_type == Interface.Type.Ethernet:
+            return EthernetInterface.extract_numeric_id(if_id)
 
 
 class VVRPGroup:
@@ -45,7 +73,7 @@ class VLanInterface(Interface):
 
     def __init__(self, vlan_id, desc=None, enabled=None, vrf=None, address=None,
                  vvrp_group=None, port_channel=None, ethernet_if=None):
-        super(VLanInterface, self).__init__(desc, enabled)
+        super(VLanInterface, self).__init__(desc, enabled, Interface.Type.VLan)
         self.vlan_id = vlan_id
         self.vrf = vrf
         self.address = address
@@ -116,12 +144,24 @@ class VLanInterface(Interface):
 
         return [body]
 
+    @staticmethod
+    def extract_numeric_id(if_id):
+        return int(if_id[4:])
+
 
 class PortChannelInterface(Interface):
 
+    path_get_untagged_vlan = "/restconf/data/dell-cms-internal:cms-interface-backptr/" \
+                             "interface-in-candidate=port-channel{channel_id}"
+
+    path_delete_untagged_vlan = "/restconf/data/ietf-interfaces:interfaces/interface={untagged_vlan}/" \
+                                "dell-interface:untagged-ports=port-channel{channel_id}"
+
+    path_get = "/restconf/data/ietf-interfaces:interfaces/interface=port-channel{channel_id}"
+
     def __init__(self, channel_id, desc=None, enabled=None, mode=None, access_vlan_id=None,
                  trunk_allowed_vlan_ids=None, mtu=None, vlt_port_channel_id=None, spanning_tree=None, ethernet_if=None):
-        super(PortChannelInterface, self).__init__(desc=desc, enabled=enabled)
+        super(PortChannelInterface, self).__init__(desc=desc, enabled=enabled, if_type=Interface.Type.PortChannel)
         self.channel_id = channel_id
         self.mode = mode
         self.access_vlan_id = access_vlan_id
@@ -130,11 +170,6 @@ class PortChannelInterface(Interface):
         self.vlt_port_channel_id = vlt_port_channel_id
         self.spanning_tree = spanning_tree
         self.ethernet_if = ethernet_if
-
-        self.path_get_untagged_vlan = "/restconf/data/dell-cms-internal:cms-interface-backptr/" \
-                                      "interface-in-candidate=port-channel{channel_id}"
-        self.path_delete_untagged_vlan = "/restconf/data/ietf-interfaces:interfaces/interface={untagged_vlan}/" \
-                                         "dell-interface:untagged-ports=port-channel{channel_id}"
 
     _modes = {
         "trunk": "MODE_L2HYBRID",
@@ -196,12 +231,16 @@ class PortChannelInterface(Interface):
                 untagged_vlan = json_resp["dell-cms-internal:interface-in-candidate"][0]["untagged-vlan"]
         return untagged_vlan
 
+    @staticmethod
+    def extract_numeric_id(if_id):
+        return int(if_id[12:])
+
 
 class EthernetInterface(Interface):
 
     def __init__(self, eif_id, desc=None, enabled=None, access_vlan_id=None, mtu=None, flow_control_receive=None,
                  flow_control_transmit=None, channel_group=None, disable_switch_port=None):
-        super(EthernetInterface, self).__init__(desc=desc, enabled=enabled)
+        super(EthernetInterface, self).__init__(desc=desc, enabled=enabled, if_type=Interface.Type.Ethernet)
         self.eif_id = eif_id
         self.access_vlan_id = access_vlan_id
         self.mtu = mtu
@@ -239,3 +278,7 @@ class EthernetInterface(Interface):
             body["dell-interface:mode"] = "MODE_L2DISABLED"
 
         return [body]
+
+    @staticmethod
+    def extract_numeric_id(if_id):
+        return int(if_id[12:])

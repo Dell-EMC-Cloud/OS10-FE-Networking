@@ -1,0 +1,1127 @@
+{
+   "ietf-interfaces:interface":[
+      {
+         "name":"ethernet1/1/1",
+         "description":"5H68PK2 leaf-1 ethernet 1/1/61",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-interface:mtu":9216,
+         "dell-interface:mode":"MODE_L2DISABLED",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":true,
+            "flow-control-tx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/2",
+         "description":"5H68PK2 leaf-1 ethernet 1/1/62",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-interface:mtu":9216,
+         "dell-interface:mode":"MODE_L2DISABLED",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":true,
+            "flow-control-tx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/3",
+         "description":"4G68PK2 leaf-2 ethernet 1/1/61",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-interface:mtu":9216,
+         "dell-interface:mode":"MODE_L2DISABLED",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":true,
+            "flow-control-tx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/4",
+         "description":"4G68PK2 leaf-2 ethernet 1/1/62",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-interface:mtu":9216,
+         "dell-interface:mode":"MODE_L2DISABLED",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":true,
+            "flow-control-tx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/5",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/6",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/7",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/8",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/9",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/10",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/11",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/12",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/13",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/14",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/15",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/16",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/17",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/18",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/19",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/20",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/21",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/22",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/23",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/24",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/25",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/26",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/27",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/28",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/29",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/30",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/31",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/32",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/33",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/34",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/35",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/36",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/37",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/38",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/39",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/40",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/41",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/42",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/43",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/44",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/45",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/46",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/47",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/48",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/49",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/50",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/51",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/52",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/53",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-interface:mode":"MODE_L2DISABLED",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/54",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-interface:mode":"MODE_L2DISABLED",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/55",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-interface:mode":"MODE_L2DISABLED",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/56",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-interface:mode":"MODE_L2DISABLED",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/57",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/58",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/59",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/60",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/61",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-interface:mode":"MODE_L2HYBRID",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false,
+            "flow-control-tx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/62",
+         "description":"R740 68RTK93",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-interface:mtu":9216,
+         "dell-interface:mode":"MODE_L2DISABLED",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":true,
+            "flow-control-tx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/63",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false,
+            "flow-control-tx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/64",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false,
+            "flow-control-tx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/65",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"ethernet1/1/66",
+         "type":"iana-if-type:ethernetCsmacd",
+         "dell-lldp-med:lldp-med-cfg":{
+
+         },
+         "dell-qos:qos-cfg":{
+            "flow-control-rx":false
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"mgmt1/1/1",
+         "description":"OOB_MGMT",
+         "type":"dell-base-interface-common:management",
+         "dell-interface:mtu":1532,
+         "dell-ip:ipv4":{
+            "address":{
+               "primary-addr":"100.127.0.121/24"
+            }
+         },
+         "dell-lldp:lldp":{
+
+         }
+      },
+      {
+         "name":"null0",
+         "type":"dell-base-interface-common:null"
+      },
+      {
+         "name":"vlan1",
+         "type":"iana-if-type:l2vlan",
+         "dell-interface:untagged-ports":[
+            "ethernet1/1/5",
+            "ethernet1/1/6",
+            "ethernet1/1/7",
+            "ethernet1/1/8",
+            "ethernet1/1/9",
+            "ethernet1/1/10",
+            "ethernet1/1/11",
+            "ethernet1/1/12",
+            "ethernet1/1/13",
+            "ethernet1/1/14",
+            "ethernet1/1/15",
+            "ethernet1/1/16",
+            "ethernet1/1/17",
+            "ethernet1/1/18",
+            "ethernet1/1/19",
+            "ethernet1/1/20",
+            "ethernet1/1/21",
+            "ethernet1/1/22",
+            "ethernet1/1/23",
+            "ethernet1/1/24",
+            "ethernet1/1/25",
+            "ethernet1/1/26",
+            "ethernet1/1/27",
+            "ethernet1/1/28",
+            "ethernet1/1/29",
+            "ethernet1/1/30",
+            "ethernet1/1/31",
+            "ethernet1/1/32",
+            "ethernet1/1/33",
+            "ethernet1/1/34",
+            "ethernet1/1/35",
+            "ethernet1/1/36",
+            "ethernet1/1/37",
+            "ethernet1/1/38",
+            "ethernet1/1/39",
+            "ethernet1/1/40",
+            "ethernet1/1/41",
+            "ethernet1/1/42",
+            "ethernet1/1/43",
+            "ethernet1/1/44",
+            "ethernet1/1/45",
+            "ethernet1/1/46",
+            "ethernet1/1/47",
+            "ethernet1/1/48",
+            "ethernet1/1/49",
+            "ethernet1/1/50",
+            "ethernet1/1/51",
+            "ethernet1/1/52",
+            "ethernet1/1/57",
+            "ethernet1/1/58",
+            "ethernet1/1/59",
+            "ethernet1/1/60",
+            "ethernet1/1/65",
+            "ethernet1/1/66",
+            "ethernet1/1/61",
+            "ethernet1/1/63",
+            "ethernet1/1/64",
+            "port-channel1",
+            "port-channel102"
+         ]
+      },
+      {
+         "name":"vlan101",
+         "type":"iana-if-type:l2vlan"
+      },
+      {
+         "name":"vlan1001",
+         "description":"BGPUplink1-Customer1",
+         "type":"iana-if-type:l2vlan",
+         "dell-interface:tagged-ports":[
+            "ethernet1/1/61"
+         ],
+         "dell-vrrp:vrrp":{
+
+         },
+         "dell-vrrp:vrrp-ipv4":{
+            "vrrp-instance":[
+               {
+                  "vrid":201,
+                  "priority":110,
+                  "virtual-ip-address":[
+                     "172.19.0.1"
+                  ]
+               }
+            ]
+         },
+         "dell-ip:ipv4":{
+            "address":{
+               "primary-addr":"172.19.0.2/24"
+            }
+         },
+         "dell-vrf:vrf":{
+            "name":"Customer1"
+         }
+      },
+      {
+         "name":"port-channel1",
+         "type":"iana-if-type:ieee8023adLag",
+         "dell-interface:mtu":9216,
+         "dell-interface:mode":"MODE_L2HYBRID",
+         "dell-interface:lag-mode":"DYNAMIC",
+         "dell-interface:member-ports":[
+            {
+               "name":"ethernet1/1/2",
+               "lacp-mode":"ACTIVE"
+            },
+            {
+               "name":"ethernet1/1/3",
+               "lacp-mode":"ACTIVE"
+            },
+            {
+               "name":"ethernet1/1/4",
+               "lacp-mode":"ACTIVE"
+            },
+            {
+               "name":"ethernet1/1/1",
+               "lacp-mode":"ACTIVE"
+            }
+         ],
+         "dell-vlt:vlt":{
+            "vlt-id":1
+         }
+      },
+      {
+         "name":"port-channel102",
+         "description":"R740 68RTK93",
+         "type":"iana-if-type:ieee8023adLag",
+         "dell-interface:mtu":9216,
+         "dell-interface:mode":"MODE_L2HYBRID",
+         "dell-interface:lag-mode":"DYNAMIC",
+         "dell-interface:member-ports":[
+            {
+               "name":"ethernet1/1/62",
+               "lacp-mode":"ACTIVE"
+            }
+         ],
+         "dell-vlt:vlt":{
+            "vlt-id":102
+         },
+         "dell-xstp:xstp-cfg":{
+            "interface-common":[
+               {
+                  "br-index":0,
+                  "config":{
+                     "edge-port-basic":"enable",
+                     "bpdu-guard":"enable"
+                  }
+               }
+            ]
+         }
+      },
+      {
+         "name":"vlan2000",
+         "type":"iana-if-type:l2vlan",
+         "dell-interface:tagged-ports":[
+            "port-channel1",
+            "port-channel102"
+         ]
+      },
+      {
+         "name":"vlan91",
+         "type":"iana-if-type:l2vlan"
+      },
+      {
+         "name":"vlan1002",
+         "description":"BGPUplink1-Customer2",
+         "type":"iana-if-type:l2vlan",
+         "dell-vrf:vrf":{
+            "name":"Customer2"
+         }
+      },
+      {
+         "name":"vlan1051",
+         "description":"BGPUplink1-Customer1",
+         "type":"iana-if-type:l2vlan",
+         "dell-ip:ipv4":{
+            "address":{
+               "primary-addr":"169.254.223.250/29"
+            }
+         },
+         "dell-vrf:vrf":{
+            "name":"Customer1"
+         }
+      },
+      {
+         "name":"vlan3001",
+         "description":"Customer1-PowerScaleC1",
+         "type":"iana-if-type:l2vlan",
+         "dell-interface:tagged-ports":[
+            "port-channel1",
+            "ethernet1/1/61"
+         ],
+         "dell-vrrp:vrrp":{
+
+         },
+         "dell-vrrp:vrrp-ipv4":{
+            "vrrp-instance":[
+               {
+                  "vrid":211,
+                  "priority":110,
+                  "virtual-ip-address":[
+                     "172.18.0.1"
+                  ]
+               }
+            ]
+         },
+         "dell-ip:ipv4":{
+            "address":{
+               "primary-addr":"172.18.0.2/24"
+            }
+         },
+         "dell-vrf:vrf":{
+            "name":"Customer1"
+         }
+      }
+   ]
+}

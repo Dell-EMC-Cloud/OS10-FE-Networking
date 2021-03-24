@@ -137,10 +137,10 @@ class VirtualRoutingForwarding:
 
 class BorderGatewayProtocol:
 
+    path = "/restconf/data/dell-bgp:bgp-router"
+
     def __init__(self, vrfs):
         self.vrfs = vrfs
-
-        self.path = "/restconf/data/dell-bgp:bgp-router"
 
     def content(self):
         body = {

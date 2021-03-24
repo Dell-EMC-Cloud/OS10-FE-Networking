@@ -1,4 +1,4 @@
-from os10_fe_networking.agent.os10_restconf_client import OS10RestConfClient
+from os10_fe_networking.agent.os10_fe_restconf_client import OS10FERestConfClient
 import logging
 from http.client import HTTPConnection  # py3
 
@@ -19,19 +19,19 @@ HTTPConnection.debuglevel = 1
 
 
 def test_port_group():
-    client = OS10RestConfClient("100.127.0.122")
+    client = OS10FERestConfClient("100.127.0.122")
     client.create_port_group("1/1/1", "unrestricted")
     client.configure_port_group("1/1/1", [{"id": "1/1/1", "eth_mode": "100GIGE"}])
     client.configure_port_group("1/1/1", [{"id": "1/1/2", "eth_mode": "100GIGE"}])
 
 
 def test_vrf():
-    client = OS10RestConfClient("100.127.0.122")
+    client = OS10FERestConfClient("100.127.0.122")
     client.configure_virtual_route_forwarding("default")
 
 
 def test_vlan():
-    client = OS10RestConfClient("100.127.0.122")
+    client = OS10FERestConfClient("100.127.0.122")
     client.configure_vlan(VLanInterface(vlan_id="1", desc="default", enabled=True))
     client.configure_vlan(VLanInterface(vlan_id="2001",
                                         desc="BGPUplink2-Customer1",
@@ -53,7 +53,7 @@ def test_vlan():
 
 
 def test_port_channel():
-    client = OS10RestConfClient("100.127.0.122")
+    client = OS10FERestConfClient("100.127.0.122")
     client.configure_port_channel(PortChannelInterface(channel_id="2",
                                                        desc=None,
                                                        enabled=True,
@@ -84,7 +84,7 @@ def test_port_channel():
 
 
 def test_ethernet_interface():
-    client = OS10RestConfClient("100.127.0.122")
+    client = OS10FERestConfClient("100.127.0.122")
     client.configure_ethernet_interface(EthernetInterface(eif_id="1/1/1",
                                                           enabled=True,
                                                           access_vlan_id="1",
@@ -112,7 +112,7 @@ def test_ethernet_interface():
 
 
 def test_configure_ethernet_interface_64_R101U43_44_9264():
-    client = OS10RestConfClient("100.127.0.122")
+    client = OS10FERestConfClient("100.127.0.122")
     client.configure_vlan(VLanInterface(vlan_id="91", desc=None, enabled=True))
     client.configure_vlan(VLanInterface(vlan_id="2001",
                           desc="BGPUplink2-Customer1",
@@ -152,7 +152,7 @@ def test_configure_ethernet_interface_64_R101U43_44_9264():
 
 
 def test_configure_ethernet_interface_64_R101U45_46_9264():
-    client = OS10RestConfClient("100.127.0.121")
+    client = OS10FERestConfClient("100.127.0.121")
     client.configure_vlan(VLanInterface(vlan_id="91", desc=None, enabled=True))
     client.configure_vlan(VLanInterface(vlan_id="1001",
                           desc="BGPUplink1-Customer1",
@@ -196,7 +196,7 @@ test_configure_ethernet_interface_64_R101U43_44_9264()
 
 
 def test_bgp():
-    client = OS10RestConfClient("100.127.0.122")
+    client = OS10FERestConfClient("100.127.0.122")
     bgp = BorderGatewayProtocol([
         VirtualRoutingForwarding(name="default",
                                  local_as_number="4200008194",

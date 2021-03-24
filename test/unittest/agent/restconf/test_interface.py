@@ -1,11 +1,26 @@
 import json
+import os
 from unittest import TestCase
+
+import requests
+import requests_mock
 
 from os10_fe_networking.agent.rest_conf.interface import VLanInterface, VVRPGroup, PortChannelInterface
 
 
 def prettyPrint(obj):
     print(json.dumps(obj, indent=4))
+
+
+def read_file_data(filename, path):
+    os.chdir(path)
+    with open(filename, encoding="utf8") as data_file:
+        json_data = json.load(data_file)
+    return json_data
+
+
+def key_func(e):
+    return int(e["name"][12:])
 
 
 class TestVLanInterface(TestCase):
@@ -91,3 +106,16 @@ class TestVLanInterface(TestCase):
     def test_port_channel_interface_for_ethernet_interface(self):
         port_channel = PortChannelInterface(channel_id="103", ethernet_if="1/1/3")
         prettyPrint(port_channel.content())
+
+    def test_123(self):
+        all_interfaces = read_file_data("all_interfaces_spine1.json", "./")
+        # prettyPrint(all_interfaces)
+
+        with requests_mock.Mocker() as m:
+            m.get('http://test.com', json=all_interfaces, status_code=200)
+            resp = requests.get('http://test.com')
+            # prettyPrint(resp.json())
+            lst = PortChannelInterface.handle_get_all(resp)
+
+            lst.sort(key=lambda e: int(e["name"][12:]))
+            prettyPrint(lst)

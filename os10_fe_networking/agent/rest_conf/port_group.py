@@ -1,10 +1,11 @@
 class PortGroup:
 
+    path = "/restconf/data/dell-port-group:port-groups"
+
     def __init__(self, pg_id, profile, ports=None):
         self.pg_id = pg_id
         self.profile = profile
         self.ports = ports
-        self.path = "/restconf/data/dell-port-group:port-groups"
 
     def create_request(self):
         return {
