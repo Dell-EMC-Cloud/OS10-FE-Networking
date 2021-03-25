@@ -34,9 +34,9 @@ class TestOS10FEFabricManager(TestCase):
         all_interfaces_spine2 = read_file_data("all_interfaces_spine2.json", "restconf/")
 
         with requests_mock.Mocker() as m:
-            m.get(self.ff_manager.active_switch_group().spines[0].base_url + PortChannelInterface.path_get_all,
+            m.get(self.ff_manager.active_switch_group().spines[0].base_url + PortChannelInterface.path_all,
                   json=all_interfaces_spine1, status_code=200)
-            m.get(self.ff_manager.active_switch_group().spines[1].base_url + PortChannelInterface.path_get_all,
+            m.get(self.ff_manager.active_switch_group().spines[1].base_url + PortChannelInterface.path_all,
                   json=all_interfaces_spine2, status_code=200)
 
             port_channel_id = self.ff_manager.get_available_interface(if_type=Interface.Type.PortChannel)
@@ -47,9 +47,9 @@ class TestOS10FEFabricManager(TestCase):
         all_interfaces_spine2 = read_file_data("all_interfaces_spine2.json", "restconf/")
 
         with requests_mock.Mocker() as m:
-            m.get(self.ff_manager.active_switch_group().spines[0].base_url + PortChannelInterface.path_get_all,
+            m.get(self.ff_manager.active_switch_group().spines[0].base_url + PortChannelInterface.path_all,
                   json=all_interfaces_spine1, status_code=200)
-            m.get(self.ff_manager.active_switch_group().spines[1].base_url + PortChannelInterface.path_get_all,
+            m.get(self.ff_manager.active_switch_group().spines[1].base_url + PortChannelInterface.path_all,
                   json=all_interfaces_spine2, status_code=200)
 
             vlan_id = self.ff_manager.get_available_interface(if_type=Interface.Type.VLan)

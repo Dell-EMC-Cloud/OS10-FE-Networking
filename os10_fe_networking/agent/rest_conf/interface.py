@@ -4,7 +4,8 @@ from requests import status_codes
 class Interface:
 
     path = "/restconf/data/ietf-interfaces:interfaces"
-    path_get_all = "/restconf/data/ietf-interfaces:interfaces/interface?content=config"
+    path_all = "/restconf/data/ietf-interfaces:interfaces/interface?content=config"
+    path_by_name = "/restconf/data/ietf-interfaces:interfaces/interface/{name}"
 
     class Type:
         VLan = "iana-if-type:l2vlan"
@@ -39,6 +40,13 @@ class Interface:
                     interface_list.append(interface)
 
         return interface_list
+
+    @staticmethod
+    def handle_get(resp):
+        if resp.status_code == status_codes.codes["ok"]:
+            return resp.json()
+        else:
+            return None
 
     @staticmethod
     def extract_numeric_id(if_type, if_id):

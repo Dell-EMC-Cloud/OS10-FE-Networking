@@ -129,10 +129,22 @@ class OS10FERestConfClient:
                             IPVirtualRouteForwarding.path_by_name["vrf-config"].format(name=name), None)
 
     def get_all_interfaces(self, if_type=None):
-        url = self.base_url + Interface.path_get_all
+        url = self.base_url + Interface.path_all
         resp = self._get(url, None)
 
         return Interface.handle_get_all(resp, if_type)
+
+    def get_interface(self, name):
+        url = self.base_url + Interface.path_by_name.format(name=name)
+        resp = self._get(url, None)
+
+        return Interface.handle_get(resp)
+
+    def delete_interface(self, name):
+        url = self.base_url + Interface.path_by_name.format(name=name)
+        resp = self._delete(url, None)
+
+        return resp.ok
 
     def configure_vlan(self, vlan_interface):
         url = self.base_url + VLanInterface.path

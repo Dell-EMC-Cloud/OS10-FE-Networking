@@ -16,6 +16,17 @@ class SwitchGroup:
 
         self.active = active
 
+    def get_client(self, address):
+        for client in self.spines:
+            if client.mgmt_ip == address:
+                return client
+
+        for client in self.leaves:
+            if client.mgmt_ip == address:
+                return client
+
+        return None
+
 
 class OS10FEFabricManager:
 
@@ -40,15 +51,50 @@ class OS10FEFabricManager:
             if switch_group.active:
                 return switch_group
 
+    def select_clients(self, address, spine):
+        client_list = []
+        if address is not None:
+            client = self.active_switch_group().get_client(address)
+            if client is None:
+                raise RuntimeError("can not find target address {address}".format(address=address))
+            client_list.append(client)
+        else:
+            if spine is True:
+                client_list.extend(self.active_switch_group().spines)
+            else:
+                client_list.extend(self.active_switch_group().leaves)
+
+        return client_list
+
     def ensure_vrf(self, name, spine=True):
-        client_list = self.active_switch_group().spines
-        if not spine:
-            client_list = self.active_switch_group().leaves
+        client_list = self.select_clients(spine=spine)
 
         for client in client_list:
             exist = client.get_virtual_route_forwarding(name)
             if not exist:
                 client.configure_virtual_route_forwarding(name)
+
+    def ensure_vlan(self, vlan_interface, spine=True):
+        client_list = self.select_clients(spine=spine)
+
+        for client in client_list:
+            exist = client.get_interface("vlan" + vlan_interface.vlan_id)
+            if not exist:
+                client.configure_vlan(vlan_interface)
+
+    def ensure_vlan_by_desc(self, vlan_interface, spine=True):
+        pass
+
+    def ensure_port_channel(self, port_channel, spine=True):
+        client_list = self.select_clients(spine=spine)
+
+        for client in client_list:
+            exist = client.get_interface("vlan" + port_channel.channel_id)
+            if not exist:
+                client.configure_vlan(port_channel)
+
+    def ensure_port_channel_by_desc(self, port_channel, spine=True):
+        pass
 
     @staticmethod
     def find_hole(sorted_set):
@@ -79,9 +125,7 @@ class OS10FEFabricManager:
 
     def get_available_interface(self, if_type=Interface.Type.VLan, spine=True):
         # determine spines or leaves
-        client_list = self.active_switch_group().spines
-        if not spine:
-            client_list = self.active_switch_group().leaves
+        client_list = self.select_clients(spine=spine)
 
         # get all interfaces for each client
         interfaces_for_clients = {}
@@ -97,3 +141,10 @@ class OS10FEFabricManager:
 
         # find a hole (available) port channel id
         return self.find_hole(sorted(interface_set))
+
+    def configure_vlan(self, vlan_interface, address=None, spine=True):
+        self.select_clients(address, spine)
+
+
+
+
