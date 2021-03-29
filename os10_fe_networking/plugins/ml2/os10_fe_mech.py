@@ -19,8 +19,8 @@ class OS10FEMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
         super(OS10FEMechanismDriver, self).__init__(
             constants.OS10FE_AGENT_TYPE,
             portbindings.VIF_TYPE_OTHER,
-            {},
-            supported_vnic_types=[portbindings.VNIC_NORMAL])
+            {portbindings.VIF_DETAILS_CONNECTIVITY: portbindings.CONNECTIVITY_L2},
+            supported_vnic_types=[portbindings.VNIC_BAREMETAL])
 
     def get_allowed_network_types(self, agent=None):
         """Return the agent's or driver's allowed network types.

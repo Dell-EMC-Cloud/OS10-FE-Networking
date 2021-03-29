@@ -28,6 +28,7 @@ from neutron.plugins.ml2.drivers.l2pop.rpc_manager \
 from neutron.plugins.ml2.drivers.agent import _agent_manager_base as amb
 from os10_fe_networking.agent.os10_fe_restconf_client import OS10FERestConfClient
 from os10_fe_networking import constants
+from os10_fe_networking import ironic_client
 
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
@@ -48,6 +49,7 @@ class OS10FENeutronAgent(service.ServiceBase):
         # TBD
         # This is a hard code ip
         self.client = OS10FERestConfClient("100.127.0.122")
+        self.ironic_client = ironic_client.get_client()
         LOG.info('Agent OS10-FE-Networking initialized.')
 
     def start(self):
@@ -125,9 +127,23 @@ class OS10FENeutronAgent(service.ServiceBase):
 
     def _report_state(self):
         node_states = {}
-        node = self.agent_host
-        template_node_state = self.get_template_node_state(node)
-        node_states.setdefault(node, template_node_state)
+        ironic_ports = self.ironic_client.ports(details=True)
+        # NOTE: the above calls returns a generator, so we need to handle
+        # exceptions that happen just before the first loop iteration, when
+        # the actual request to ironic happens
+        try:
+            for port in ironic_ports:
+                node = port.node_id
+                template_node_state = self.get_template_node_state(node)
+                node_states.setdefault(node, template_node_state)
+                mapping = node_states[
+                    node]["configurations"]["bridge_mappings"]
+                if port.physical_network is not None:
+                    mapping[port.physical_network] = "yes"
+        except sdk_exc.OpenStackCloudException:
+            LOG.exception("Failed to get ironic ports data! "
+                          "Not reporting state.")
+            return
 
         for state in node_states.values():
             # If the node was not previously reported with current
@@ -139,7 +155,7 @@ class OS10FENeutronAgent(service.ServiceBase):
                          'configuration: %s',
                          state['host'], state['configurations'])
             try:
-                LOG.info('Reporting state for host: %s with configuration: '
+                LOG.debug('Reporting state for host: %s with configuration: '
                           '%s', state['host'], state['configurations'])
                 self.state_rpc.report_state(self.context, state)
             except AttributeError:
@@ -159,7 +175,6 @@ class OS10FENeutronAgent(service.ServiceBase):
 
 class OS10FERpcCallbacks(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
                          amb.CommonAgentManagerRpcCallBackBase):
-
     # Set RPC API version to 1.0 by default.
     target = oslo_messaging.Target(version='1.5')
 
@@ -182,9 +197,12 @@ class OS10FERpcCallbacks(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         LOG.info("binding_activate received")
 
 
-
 def _unregister_deprecated_opts():
     CONF.reset()
+    CONF.unregister_opts(
+        [CONF._groups[ironic_client.IRONIC_GROUP]._opts[opt]['opt']
+         for opt in ironic_client._deprecated_opts],
+        group=ironic_client.IRONIC_GROUP)
 
 
 def main():
