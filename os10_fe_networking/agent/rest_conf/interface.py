@@ -1,8 +1,9 @@
+from enum import Enum
+
 from requests import status_codes
 
 
 class Interface:
-
     path = "/restconf/data/ietf-interfaces:interfaces"
     path_all = "/restconf/data/ietf-interfaces:interfaces/interface?content=config"
     path_by_name = "/restconf/data/ietf-interfaces:interfaces/interface/{name}"
@@ -16,6 +17,15 @@ class Interface:
         self.desc = desc
         self.enabled = enabled
         self.if_type = if_type
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__dict__ == other.__dict__
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def content(self):
         body = {
@@ -42,20 +52,29 @@ class Interface:
         return interface_list
 
     @staticmethod
+    def handle_get_all_by_type(resp):
+        vlan_dict = {}
+        port_channel_dict = {}
+        ethernet_dict = {}
+
+        if resp.status_code == status_codes.codes["ok"]:
+            json_resp = resp.json()
+            for interface in json_resp["ietf-interfaces:interface"]:
+                if interface["type"] == Interface.Type.VLan:
+                    vlan_dict[interface["name"]] = interface
+                elif interface["type"] == Interface.Type.PortChannel:
+                    port_channel_dict[interface["name"]] = interface
+                elif interface["type"] == Interface.Type.Ethernet:
+                    ethernet_dict[interface["name"]] = interface
+
+        return vlan_dict, port_channel_dict, ethernet_dict
+
+    @staticmethod
     def handle_get(resp):
         if resp.status_code == status_codes.codes["ok"]:
             return resp.json()
         else:
             return None
-
-    @staticmethod
-    def extract_numeric_id(if_type, if_id):
-        if if_type == Interface.Type.VLan:
-            return VLanInterface.extract_numeric_id(if_id)
-        elif if_type == Interface.Type.PortChannel:
-            return PortChannelInterface.extract_numeric_id(if_id)
-        elif if_type == Interface.Type.Ethernet:
-            return EthernetInterface.extract_numeric_id(if_id)
 
 
 class VVRPGroup:
@@ -78,19 +97,23 @@ class VVRPGroup:
 
 
 class VLanInterface(Interface):
+    class PortChannelMode(Enum):
+        ACCESS = "access"
+        TRUNK = "trunk"
 
     def __init__(self, vlan_id, desc=None, enabled=None, vrf=None, address=None,
-                 vvrp_group=None, port_channel=None, ethernet_if=None):
+                 vvrp_group=None, port_channel=None, port_channel_mode=None, ethernet_if=None):
         super(VLanInterface, self).__init__(desc, enabled, Interface.Type.VLan)
         self.vlan_id = vlan_id
         self.vrf = vrf
         self.address = address
         self.vvrp_group = vvrp_group
         self.port_channel = port_channel
+        self.port_channel_mode = port_channel_mode
         self.ethernet_if = ethernet_if
 
     def content(self):
-        if "," in self.vlan_id or "-" in self.vlan_id:
+        if self.port_channel is not None:
             body = {
                 "ietf-interfaces:interfaces": {
                     "dell-interface-range:interface-range": []
@@ -111,14 +134,14 @@ class VLanInterface(Interface):
 
         # configure vlan for port-channel
         if self.port_channel is not None:
-            if "," in self.vlan_id or "-" in self.vlan_id:
+            if self.port_channel_mode == self.PortChannelMode.TRUNK:
                 body["name"] = self.vlan_id
                 body["config-template"] = {
                     "dell-interface:tagged-ports": [
                         "port-channel" + self.port_channel
                     ]
                 }
-            else:
+            elif self.port_channel_mode == self.PortChannelMode.ACCESS:
                 body["dell-interface:untagged-ports"] = [
                     "port-channel" + self.port_channel
                 ]
@@ -158,7 +181,6 @@ class VLanInterface(Interface):
 
 
 class PortChannelInterface(Interface):
-
     path_get_untagged_vlan = "/restconf/data/dell-cms-internal:cms-interface-backptr/" \
                              "interface-in-candidate=port-channel{channel_id}"
 
@@ -167,8 +189,42 @@ class PortChannelInterface(Interface):
 
     path_get = "/restconf/data/ietf-interfaces:interfaces/interface=port-channel{channel_id}"
 
-    def __init__(self, channel_id, desc=None, enabled=None, mode=None, access_vlan_id=None,
-                 trunk_allowed_vlan_ids=None, mtu=None, vlt_port_channel_id=None, spanning_tree=None, ethernet_if=None):
+    class SpanningTree:
+
+        def __init__(self, enabled, bpdu, edge_port):
+            self.enabled = enabled
+            self.bpdu = bpdu
+            self.edge_port = edge_port
+
+        def empty(self):
+            return self.enabled is None and \
+                   self.bpdu is None and \
+                   self.edge_port is None
+
+        def content(self):
+            body = {
+                "br-index": 0,
+            }
+
+            if self.enabled is False:
+                body["enable"] = str(self.enabled).lower()
+
+            if self.bpdu is True:
+                if not body.get("config"):
+                    body["config"] = {}
+
+                body["config"]["bpdu-guard"] = "enable"
+
+            if self.edge_port is True:
+                if not body.get("config"):
+                    body["config"] = {}
+
+                body["config"]["edge-port-basic"] = "enable"
+
+            return body
+
+    def __init__(self, channel_id, desc=None, enabled=None, mode=None, access_vlan_id=None, trunk_allowed_vlan_ids=None,
+                 mtu=None, vlt_port_channel_id=None, spanning_tree=None, bpdu=None, edge_port=None, ethernet_if=None):
         super(PortChannelInterface, self).__init__(desc=desc, enabled=enabled, if_type=Interface.Type.PortChannel)
         self.channel_id = channel_id
         self.mode = mode
@@ -176,7 +232,7 @@ class PortChannelInterface(Interface):
         self.trunk_allowed_vlan_ids = trunk_allowed_vlan_ids
         self.mtu = mtu
         self.vlt_port_channel_id = vlt_port_channel_id
-        self.spanning_tree = spanning_tree
+        self.spanning_tree = PortChannelInterface.SpanningTree(spanning_tree, bpdu, edge_port)
         self.ethernet_if = ethernet_if
 
     _modes = {
@@ -209,13 +265,10 @@ class PortChannelInterface(Interface):
             if self.desc is not None:
                 body["description"] = self.desc
 
-            if self.spanning_tree is not None:
+            if not self.spanning_tree.empty():
                 body["dell-xstp:xstp-cfg"] = {
                     "interface-common": [
-                        {
-                            "br-index": 0,
-                            "enable": self.spanning_tree
-                        }
+                        self.spanning_tree.content()
                     ]
                 }
 

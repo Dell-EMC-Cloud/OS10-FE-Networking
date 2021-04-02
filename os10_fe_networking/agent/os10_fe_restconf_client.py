@@ -134,6 +134,12 @@ class OS10FERestConfClient:
 
         return Interface.handle_get_all(resp, if_type)
 
+    def get_all_interfaces_by_type(self):
+        url = self.base_url + Interface.path_all
+        resp = self._get(url, None)
+
+        return Interface.handle_get_all_by_type(resp)
+
     def get_interface(self, name):
         url = self.base_url + Interface.path_by_name.format(name=name)
         resp = self._get(url, None)
@@ -148,12 +154,6 @@ class OS10FERestConfClient:
 
     def configure_vlan(self, vlan_interface):
         url = self.base_url + VLanInterface.path
-
-        # create empty vlan interface, and patch the left properties later
-        # create vlan interface with all its properties results in ERROR: "DATA, L3 configs present on this interface"
-        resp = self._patch_and_post(url, None, VLanInterface(vlan_id=vlan_interface.vlan_id).content())
-
-        # patch the left properties
         resp = self._patch_and_post(url, None, vlan_interface.content())
 
         return resp
@@ -175,16 +175,18 @@ class OS10FERestConfClient:
 
         if port_channel.access_vlan_id is not None:
             resp = self._patch_and_post(url, None, VLanInterface(vlan_id=port_channel.access_vlan_id,
-                                                                 port_channel=port_channel.channel_id).content())
-        else:
-            # switch port access vlan is auto-created, if there is no access_vlan_id in port_channel, delete it.
-            untagged_vlan = self._get_untagged_vlan_from_port_channel(port_channel)
-            if untagged_vlan is not None:
-                # Delete this untagged vlan
-                self._delete_untagged_vlan_in_port_channel(untagged_vlan, port_channel)
+                                                                 port_channel_mode=VLanInterface.PortChannelMode.ACCESS,
+                                                                 port_channel=port_channel.channel_id,).content(),)
+        # else:
+        #     # switch port access vlan is auto-created, if there is no access_vlan_id in port_channel, delete it.
+        #     untagged_vlan = self._get_untagged_vlan_from_port_channel(port_channel)
+        #     if untagged_vlan is not None:
+        #         # Delete this untagged vlan
+        #         self._delete_untagged_vlan_in_port_channel(untagged_vlan, port_channel)
 
         if port_channel.trunk_allowed_vlan_ids is not None:
             resp = self._patch_and_post(url, None, VLanInterface(vlan_id=port_channel.trunk_allowed_vlan_ids,
+                                                                 port_channel_mode=VLanInterface.PortChannelMode.TRUNK,
                                                                  port_channel=port_channel.channel_id).content())
 
         return resp

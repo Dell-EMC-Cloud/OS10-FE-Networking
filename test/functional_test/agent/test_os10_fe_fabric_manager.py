@@ -1,4 +1,4 @@
-from os10_fe_networking.agent.os10_fe_fabric_manager import OS10FEFabricManager, SwitchGroup
+from os10_fe_networking.agent.os10_fe_fabric_manager import OS10FEFabricManager, SwitchPair
 import logging
 from http.client import HTTPConnection  # py3
 
@@ -15,23 +15,6 @@ log.addHandler(ch)
 # print statements from `http.client.HTTPConnection` to console/stdout
 HTTPConnection.debuglevel = 1
 
-manager = OS10FEFabricManager(switch_groups=[
-    SwitchGroup(spine_addresses=[
-        "100.127.0.121",
-        "100.127.0.122"
-    ],
-        leaf_addresses=[
-            "100.127.0.125",
-            "100.127.0.126"
-        ],
-        active=True)
-])
+manager = OS10FEFabricManager(SwitchPair(["100.127.0.125", "100.127.0.126"], SwitchPair.Category.LEAF))
 
-
-def configure(vlan_interfaces, port_channel, ethernet_interface):
-    pass
-
-
-
-
-configure()
+manager.ensure_configuration(None, None, None, None, None)

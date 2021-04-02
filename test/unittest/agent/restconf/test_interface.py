@@ -28,6 +28,12 @@ class TestVLanInterface(TestCase):
     def setUp(self):
         pass
 
+    def test_equal_vlan(self):
+        vlan1 = VLanInterface(vlan_id=1, desc="abc")
+        vlan2 = VLanInterface(vlan_id=1, desc="abc")
+        print(vlan1 == vlan2)
+        print(vlan1 is vlan2)
+
     def test_vlan_interface_simple(self):
         vlan_interface = VLanInterface(vlan_id="1", desc="default", enabled=True)
         prettyPrint(vlan_interface.content())
@@ -55,12 +61,27 @@ class TestVLanInterface(TestCase):
                                        )
         prettyPrint(vlan_interface.content())
 
-    def test_vlan_interface_with_port_channel(self):
-        vlan_interface = VLanInterface("1", port_channel="103")
+    def test_vlan_interface_vlan_access(self):
+        vlan_interface = VLanInterface(vlan_id="3002",
+                                       desc="Isilon-FrontEnd-Cluster2",
+                                       enabled=True,
+                                       port_channel="123",
+                                       port_channel_mode=VLanInterface.PortChannelMode.ACCESS)
         prettyPrint(vlan_interface.content())
 
-    def test_vlan_interface_with_port_channel1(self):
-        vlan_interface = VLanInterface("1001,2001-2003,2051", port_channel="103")
+    def test_vlan_interface_vlan_trunk_allowed(self):
+        vlan_interface = VLanInterface(vlan_id="3002",
+                                       desc="Isilon-FrontEnd-Cluster2",
+                                       enabled=True,
+                                       port_channel="123",
+                                       port_channel_mode=VLanInterface.PortChannelMode.TRUNK)
+        prettyPrint(vlan_interface.content())
+
+        vlan_interface = VLanInterface(vlan_id="3002,3004,3008-3100",
+                                       desc="Isilon-FrontEnd-Cluster2",
+                                       enabled=True,
+                                       port_channel="123",
+                                       port_channel_mode=VLanInterface.PortChannelMode.TRUNK)
         prettyPrint(vlan_interface.content())
 
     def test_vlan_interface_with_ethernet_interface(self):
@@ -76,7 +97,7 @@ class TestVLanInterface(TestCase):
                                             trunk_allowed_vlan_ids="1001,2001",
                                             mtu=None,
                                             vlt_port_channel_id=None,
-                                            spanning_tree="false")
+                                            spanning_tree=False)
         prettyPrint(port_channel.content())
 
     def test_port_channel_interface1(self):
@@ -88,7 +109,8 @@ class TestVLanInterface(TestCase):
                                             trunk_allowed_vlan_ids="1001,2001",
                                             mtu=9216,
                                             vlt_port_channel_id=10,
-                                            spanning_tree=None)
+                                            spanning_tree=None,
+                                            bpdu=True)
         prettyPrint(port_channel.content())
 
     def test_port_channel_interface2(self):
@@ -100,7 +122,9 @@ class TestVLanInterface(TestCase):
                                             trunk_allowed_vlan_ids="1001,2001",
                                             mtu=9216,
                                             vlt_port_channel_id=103,
-                                            spanning_tree=None)
+                                            spanning_tree=None,
+                                            bpdu=True,
+                                            edge_port=True)
         prettyPrint(port_channel.content())
 
     def test_port_channel_interface_for_ethernet_interface(self):

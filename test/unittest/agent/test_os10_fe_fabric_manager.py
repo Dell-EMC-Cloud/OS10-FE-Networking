@@ -5,8 +5,8 @@ from unittest import TestCase
 import requests
 import requests_mock
 
-from os10_fe_networking.agent.os10_fe_fabric_manager import OS10FEFabricManager
-from os10_fe_networking.agent.rest_conf.interface import PortChannelInterface, Interface
+from os10_fe_networking.agent.os10_fe_fabric_manager import OS10FEFabricManager, SwitchPair
+from os10_fe_networking.agent.rest_conf.interface import PortChannelInterface, Interface, VLanInterface
 
 
 def prettyPrint(obj):
@@ -22,35 +22,31 @@ def read_file_data(filename, path):
 class TestOS10FEFabricManager(TestCase):
 
     def setUp(self):
-        self.ff_manager = OS10FEFabricManager()
+        self.spine1_ip = "100.127.0.121"
+        self.spine2_ip = "100.127.0.122"
+        self.leaf1_ip = "100.127.0.125"
+        self.leaf2_ip = "100.127.0.126"
+        self.ff_manager = OS10FEFabricManager(SwitchPair(["100.127.0.125", "100.127.0.126"], SwitchPair.Category.LEAF))
 
     def test_find_hole(self):
         self.assertEqual(self.ff_manager.find_hole({}), 1)
         self.assertEqual(self.ff_manager.find_hole({1, 2, 5, 7}), 3)
         self.assertEqual(self.ff_manager.find_hole({1, 2, 3, 4}), 5)
 
-    def test_get_available_port_channel(self):
-        all_interfaces_spine1 = read_file_data("all_interfaces_spine1.json", "restconf/")
-        all_interfaces_spine2 = read_file_data("all_interfaces_spine2.json", "restconf/")
+    def test_ensure_configuration(self):
+        all_interfaces_leaf1 = read_file_data("all_interfaces_leaf1.json", "restconf/")
+        all_interfaces_leaf2 = read_file_data("all_interfaces_leaf2.json", "restconf/")
 
         with requests_mock.Mocker() as m:
-            m.get(self.ff_manager.active_switch_group().spines[0].base_url + PortChannelInterface.path_all,
-                  json=all_interfaces_spine1, status_code=200)
-            m.get(self.ff_manager.active_switch_group().spines[1].base_url + PortChannelInterface.path_all,
-                  json=all_interfaces_spine2, status_code=200)
+            m.get(self.ff_manager.switch_pair.get(self.leaf1_ip).base_url + Interface.path_all,
+                  json=all_interfaces_leaf1, status_code=200)
+            m.patch(self.ff_manager.switch_pair.get(self.leaf1_ip).base_url + Interface.path,
+                    status_code=204)
 
-            port_channel_id = self.ff_manager.get_available_interface(if_type=Interface.Type.PortChannel)
-            self.assertEqual(port_channel_id, 3)
+            m.get(self.ff_manager.switch_pair.get(self.leaf2_ip).base_url + Interface.path_all,
+                  json=all_interfaces_leaf2, status_code=200)
+            m.patch(self.ff_manager.switch_pair.get(self.leaf2_ip).base_url + Interface.path,
+                    status_code=204)
 
-    def test_get_available_vlan(self):
-        all_interfaces_spine1 = read_file_data("all_interfaces_spine1.json", "restconf/")
-        all_interfaces_spine2 = read_file_data("all_interfaces_spine2.json", "restconf/")
+            self.ff_manager.ensure_configuration("100.127.0.125", "ethernet1/1/1:1", "90", "Customer1", "hostname1")
 
-        with requests_mock.Mocker() as m:
-            m.get(self.ff_manager.active_switch_group().spines[0].base_url + PortChannelInterface.path_all,
-                  json=all_interfaces_spine1, status_code=200)
-            m.get(self.ff_manager.active_switch_group().spines[1].base_url + PortChannelInterface.path_all,
-                  json=all_interfaces_spine2, status_code=200)
-
-            vlan_id = self.ff_manager.get_available_interface(if_type=Interface.Type.VLan)
-            self.assertEqual(vlan_id, 3)

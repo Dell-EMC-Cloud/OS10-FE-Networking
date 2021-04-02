@@ -62,7 +62,7 @@ def test_port_channel():
                                                        trunk_allowed_vlan_ids="1001,2001",
                                                        mtu=None,
                                                        vlt_port_channel_id=None,
-                                                       spanning_tree="false"))
+                                                       spanning_tree=False))
     client.configure_port_channel(PortChannelInterface(channel_id="10",
                                                        desc=None,
                                                        enabled=True,
@@ -138,7 +138,7 @@ def test_configure_ethernet_interface_64_R101U43_44_9264():
                                   trunk_allowed_vlan_ids="91,2001-2002,2051",
                                   mtu=None,
                                   vlt_port_channel_id=None,
-                                  spanning_tree="false"))
+                                  spanning_tree=False))
 
     client.configure_ethernet_interface(EthernetInterface(eif_id="1/1/64",
                                         desc="Google Uplink2",
@@ -178,7 +178,7 @@ def test_configure_ethernet_interface_64_R101U45_46_9264():
                                   trunk_allowed_vlan_ids="90,1001-1002,1051",
                                   mtu=None,
                                   vlt_port_channel_id=None,
-                                  spanning_tree="false"))
+                                  spanning_tree=False))
 
     client.configure_ethernet_interface(EthernetInterface(eif_id="1/1/64",
                                         desc="Google Uplink1",

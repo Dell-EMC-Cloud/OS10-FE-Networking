@@ -1,10 +1,14 @@
+import json
 import socket
 import sys
+import time
 from urllib import parse as urlparse
 
 import eventlet
 
 # oslo_messaging/notify/listener.py documents that monkeypatching is required
+from os10_fe_networking.agent.os10_fe_fabric_manager import OS10FEFabricManager
+
 eventlet.monkey_patch()
 from neutron.agent import rpc as agent_rpc
 from neutron.common import config as common_config
@@ -46,10 +50,13 @@ class OS10FENeutronAgent(service.ServiceBase):
         self.agent_id = uuidutils.generate_uuid(dashed=True)
         self.agent_host = socket.gethostname()
         self.reported_nodes = {}
+        self.polling_interval = CONF.AGENT.polling_interval
+        self.agent_type = constants.OS10FE_AGENT_TYPE
         # TBD
         # This is a hard code ip
         self.client = OS10FERestConfClient("100.127.0.122")
         self.ironic_client = ironic_client.get_client()
+        self.fabric_manager = OS10FEFabricManager()
         LOG.info('Agent OS10-FE-Networking initialized.')
 
     def start(self):
@@ -60,6 +67,7 @@ class OS10FENeutronAgent(service.ServiceBase):
         self.heartbeat.start(interval=CONF.AGENT.report_interval,
                              initial_delay=CONF.AGENT.report_interval)
         self.connection.consume_in_threads()
+        self.daemon_loop()
 
     def setup_rpc(self):
         self.plugin_rpc = agent_rpc.PluginApi(topics.PLUGIN)
@@ -171,6 +179,91 @@ class OS10FENeutronAgent(service.ServiceBase):
                 return
             self.reported_nodes.update(
                 {state['host']: state['configurations']})
+
+    def _get_switch_ip(self, port):
+        switch_info = json.loads(port.local_link_connection["switch_info"])
+        return switch_info["switch_ip"]
+
+    def _get_cluster(self, port):
+        switch_info = json.loads(port.local_link_connection["switch_info"])
+        return switch_info["cluster"]
+
+    def _get_node_id(self, port):
+        switch_info = json.loads(port.local_link_connection["switch_info"])
+        return switch_info["node"]
+
+    def _fetch_and_check_baremetal_ports(self):
+        ironic_ports = self.ironic_client.ports(True)
+        ports = []
+        for port in ironic_ports:
+            if "tenant_vif_port_id" in port.internal_info and \
+                    "port_id" in port.local_link_connection and \
+                    "switch_id" in port.local_link_connection and \
+                    "switch_info" in port.local_link_connection:
+                switch_info = json.loads(port.local_link_connection["switch_info"])
+                if switch_info["fabric"] != constants.FRONTEND:
+                    ports.append(port)
+
+        return ports
+
+    def _get_devices_details_list(self, devices):
+        devices_details_list = self.plugin_rpc.get_devices_details_list(
+            self.context, devices, self.agent_id, host=cfg.CONF.host)
+
+        for device_detail in devices_details_list:
+            switch_info = device_detail['profile']['local_link_information'][0]['switch_info']
+            device_detail['profile']['local_link_information'][0]['switch_info'] = json.loads(
+                switch_info.replace("'", "\""))
+
+        return devices_details_list
+
+    def init(self):
+        ironic_ports = self._fetch_and_check_baremetal_ports()
+        devices = [port.address for port in ironic_ports]
+
+        devices_details_list = self._get_devices_details_list(devices)
+
+        for device_detail in devices_details_list:
+
+            local_link_information = device_detail['profile']['local_link_information'][0]
+            switch_port = local_link_information['port_id']
+            switch_ip = local_link_information['switch_info']['switch_ip']
+            segment = device_detail['segmentation_id']
+            cluster = local_link_information['switch_info']['cluster']
+            node_no = local_link_information['switch_info']['node_no']
+
+            # ensure above configuration
+            self.fabric_manager.ensure_configuration(switch_ip=switch_ip,
+                                                     ethernet_interface=switch_port,
+                                                     vlan=segment,
+                                                     cluster=cluster,
+                                                     host=node_no)
+
+    def daemon_loop(self):
+        LOG.info("%s Agent RPC Daemon Started!", self.agent_type)
+
+        self.init()
+
+        while True:
+            start = time.time()
+
+            ironic_nodes = self.ironic_client.nodes(True)
+            for node in ironic_nodes:
+                dir(node)
+
+            ironic_ports = self.ironic_client.ports(True)
+            for port in ironic_ports:
+                dir(port)
+
+            # sleep till end of polling interval
+            elapsed = (time.time() - start)
+            if elapsed < self.polling_interval:
+                time.sleep(self.polling_interval - elapsed)
+            else:
+                LOG.debug("Loop iteration exceeded interval "
+                          "(%(polling_interval)s vs. %(elapsed)s)!",
+                          {'polling_interval': self.polling_interval,
+                           'elapsed': elapsed})
 
 
 class OS10FERpcCallbacks(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
