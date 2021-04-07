@@ -97,7 +97,10 @@ class TestVLanInterface(TestCase):
                                             trunk_allowed_vlan_ids="1001,2001",
                                             mtu=None,
                                             vlt_port_channel_id=None,
-                                            spanning_tree=False)
+                                            spanning_tree=False,
+                                            lacp_fallback=True,
+                                            lacp_timeout=10,
+                                            )
         prettyPrint(port_channel.content())
 
     def test_port_channel_interface1(self):
@@ -110,6 +113,9 @@ class TestVLanInterface(TestCase):
                                             mtu=9216,
                                             vlt_port_channel_id=10,
                                             spanning_tree=None,
+                                            lacp_fallback=True,
+                                            lacp_timeout=10,
+                                            lacp_preempt=False,
                                             bpdu=True)
         prettyPrint(port_channel.content())
 

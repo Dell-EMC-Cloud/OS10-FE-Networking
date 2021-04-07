@@ -52,11 +52,16 @@ class OS10FENeutronAgent(service.ServiceBase):
         self.reported_nodes = {}
         self.polling_interval = CONF.AGENT.polling_interval
         self.agent_type = constants.OS10FE_AGENT_TYPE
-        # TBD
-        # This is a hard code ip
-        self.client = OS10FERestConfClient("100.127.0.122")
+
+        # cache objects
+        self.cached_devices_details_list = None
+        self.updated_ports = set()
+        self.deleted_ports = set()
+        self.deleted_networks = set()
+
+        # TODO This is a hard code ip
         self.ironic_client = ironic_client.get_client()
-        self.fabric_manager = OS10FEFabricManager()
+        self.fabric_manager = OS10FEFabricManager("100.127.0.125", "100.127.0.126", OS10FEFabricManager.Category.LEAF)
         LOG.info('Agent OS10-FE-Networking initialized.')
 
     def start(self):
@@ -91,6 +96,7 @@ class OS10FENeutronAgent(service.ServiceBase):
 
     def get_rpc_consumers(self):
         consumers = [[topics.PORT, topics.UPDATE],
+                     [topics.PORT, topics.DELETE],
                      [topics.NETWORK, topics.DELETE],
                      [topics.NETWORK, topics.UPDATE],
                      [topics.SECURITY_GROUP, topics.UPDATE],
@@ -180,17 +186,13 @@ class OS10FENeutronAgent(service.ServiceBase):
             self.reported_nodes.update(
                 {state['host']: state['configurations']})
 
-    def _get_switch_ip(self, port):
-        switch_info = json.loads(port.local_link_connection["switch_info"])
-        return switch_info["switch_ip"]
+    def _get_and_clear_member_set(self, member):
+        if member not in self.__dict__:
+            raise RuntimeError("Can not find member {member} in object".format(member=member))
 
-    def _get_cluster(self, port):
-        switch_info = json.loads(port.local_link_connection["switch_info"])
-        return switch_info["cluster"]
-
-    def _get_node_id(self, port):
-        switch_info = json.loads(port.local_link_connection["switch_info"])
-        return switch_info["node"]
+        return_set = self.__dict__[member]
+        self.__dict__[member] = set()
+        return return_set
 
     def _fetch_and_check_baremetal_ports(self):
         ironic_ports = self.ironic_client.ports(True)
@@ -200,8 +202,8 @@ class OS10FENeutronAgent(service.ServiceBase):
                     "port_id" in port.local_link_connection and \
                     "switch_id" in port.local_link_connection and \
                     "switch_info" in port.local_link_connection:
-                switch_info = json.loads(port.local_link_connection["switch_info"])
-                if switch_info["fabric"] != constants.FRONTEND:
+                switch_info = json.loads(port.local_link_connection["switch_info"].replace("'", "\""))
+                if switch_info["fabric"] == constants.FRONTEND:
                     ports.append(port)
 
         return ports
@@ -217,43 +219,60 @@ class OS10FENeutronAgent(service.ServiceBase):
 
         return devices_details_list
 
-    def init(self):
+    def refresh_devices_details_list(self):
         ironic_ports = self._fetch_and_check_baremetal_ports()
         devices = [port.address for port in ironic_ports]
+        self.cached_devices_details_list = self._get_devices_details_list(devices)
 
-        devices_details_list = self._get_devices_details_list(devices)
-
-        for device_detail in devices_details_list:
-
-            local_link_information = device_detail['profile']['local_link_information'][0]
-            switch_port = local_link_information['port_id']
-            switch_ip = local_link_information['switch_info']['switch_ip']
-            segment = device_detail['segmentation_id']
-            cluster = local_link_information['switch_info']['cluster']
-            node_no = local_link_information['switch_info']['node_no']
-
-            # ensure above configuration
-            self.fabric_manager.ensure_configuration(switch_ip=switch_ip,
-                                                     ethernet_interface=switch_port,
-                                                     vlan=segment,
-                                                     cluster=cluster,
-                                                     host=node_no)
+    def get_info(self, device_detail):
+        local_link_information = device_detail['profile']['local_link_information'][0]
+        switch_port = local_link_information['port_id']
+        switch_ip = local_link_information['switch_info']['switch_ip']
+        segment = device_detail['segmentation_id']
+        cluster = local_link_information['switch_info']['cluster']
+        preemption = local_link_information['switch_info']['preemption']
+        return cluster, segment, switch_ip, switch_port, preemption
 
     def daemon_loop(self):
         LOG.info("%s Agent RPC Daemon Started!", self.agent_type)
 
-        self.init()
+        start_up = True
 
         while True:
             start = time.time()
 
-            ironic_nodes = self.ironic_client.nodes(True)
-            for node in ironic_nodes:
-                dir(node)
+            updated_ports = self._get_and_clear_member_set("updated_ports")
+            deleted_ports = self._get_and_clear_member_set("deleted_ports")
+            deleted_networks = self._get_and_clear_member_set("deleted_networks")
 
-            ironic_ports = self.ironic_client.ports(True)
-            for port in ironic_ports:
-                dir(port)
+            for port_id in deleted_ports:
+                for device_detail in self.cached_devices_details_list:
+                    if port_id == device_detail["port_id"]:
+                        cluster, segment, switch_ip, switch_port, preemption = self.get_info(device_detail)
+
+                        self.fabric_manager.release_ethernet_interface(switch_port, segment)
+
+            for network_id in deleted_networks:
+                for device_detail in self.cached_devices_details_list:
+                    if network_id == device_detail["network_id"]:
+                        cluster, segment, switch_ip, switch_port, preemption = self.get_info(device_detail)
+
+                        self.fabric_manager.delete_port_channel_vlan(switch_port, segment)
+
+            if start_up or updated_ports:
+                start_up = False
+                self.refresh_devices_details_list()
+                for device_detail in self.cached_devices_details_list:
+                    if updated_ports and device_detail["port_id"] not in updated_ports:
+                        continue
+
+                    cluster, segment, switch_ip, switch_port, preemption = self.get_info(device_detail)
+                    # ensure above configuration
+                    self.fabric_manager.ensure_configuration(switch_ip=switch_ip,
+                                                             ethernet_interface=switch_port,
+                                                             vlan=segment,
+                                                             cluster=cluster,
+                                                             preemption=preemption)
 
             # sleep till end of polling interval
             elapsed = (time.time() - start)
@@ -276,12 +295,20 @@ class OS10FERpcCallbacks(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
 
     def network_update(self, context, **kwargs):
         LOG.info("network_update received")
+        self.agent.deleted_networks.add(kwargs["network_id"])
 
     def port_update(self, context, **kwargs):
+        port = kwargs["port"]
+        network_type = kwargs["network_type"]
+        segmentation_id = kwargs["segmentation_id"]
+        physical_network = kwargs["physical_network"]
         LOG.info("port_update received")
+
+        self.agent.updated_ports.add(port["id"])
 
     def port_delete(self, context, **kwargs):
         LOG.info("port_delete received")
+        self.agent.deleted_ports.add(kwargs["port_id"])
 
     def binding_deactivate(self, context, **kwargs):
         LOG.info("binding_deactivate received")

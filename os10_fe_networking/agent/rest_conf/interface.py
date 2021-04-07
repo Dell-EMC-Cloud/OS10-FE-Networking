@@ -196,10 +196,11 @@ class PortChannelInterface(Interface):
             self.bpdu = bpdu
             self.edge_port = edge_port
 
-        def empty(self):
-            return self.enabled is None and \
-                   self.bpdu is None and \
-                   self.edge_port is None
+        def __bool__(self):
+            for val in self.__dict__.values():
+                if val is not None:
+                    return True
+            return False
 
         def content(self):
             body = {
@@ -223,8 +224,36 @@ class PortChannelInterface(Interface):
 
             return body
 
+    class LACPFallback:
+
+        def __init__(self, enabled, timeout, preemption):
+            self.enabled = enabled
+            self.timeout = timeout
+            self.preemption = preemption
+
+        def __bool__(self):
+            for val in self.__dict__.values():
+                if val is not None:
+                    return True
+            return False
+
+        def content(self):
+            body = {}
+
+            if self.enabled is True:
+                body["enable"] = True
+
+            if self.timeout is not None:
+                body["timeout"] = self.timeout
+
+            if self.preemption is False:
+                body["port-preempt"] = False
+
+            return body
+
     def __init__(self, channel_id, desc=None, enabled=None, mode=None, access_vlan_id=None, trunk_allowed_vlan_ids=None,
-                 mtu=None, vlt_port_channel_id=None, spanning_tree=None, bpdu=None, edge_port=None, ethernet_if=None):
+                 mtu=None, vlt_port_channel_id=None, spanning_tree=None, bpdu=None, edge_port=None, lacp_fallback=None,
+                 lacp_timeout=None, lacp_preempt=None, ethernet_if=None):
         super(PortChannelInterface, self).__init__(desc=desc, enabled=enabled, if_type=Interface.Type.PortChannel)
         self.channel_id = channel_id
         self.mode = mode
@@ -233,6 +262,7 @@ class PortChannelInterface(Interface):
         self.mtu = mtu
         self.vlt_port_channel_id = vlt_port_channel_id
         self.spanning_tree = PortChannelInterface.SpanningTree(spanning_tree, bpdu, edge_port)
+        self.lacp = PortChannelInterface.LACPFallback(lacp_fallback, lacp_timeout, lacp_preempt)
         self.ethernet_if = ethernet_if
 
     _modes = {
@@ -265,7 +295,7 @@ class PortChannelInterface(Interface):
             if self.desc is not None:
                 body["description"] = self.desc
 
-            if not self.spanning_tree.empty():
+            if self.spanning_tree:
                 body["dell-xstp:xstp-cfg"] = {
                     "interface-common": [
                         self.spanning_tree.content()
@@ -279,6 +309,9 @@ class PortChannelInterface(Interface):
                 body["dell-vlt:vlt"] = {
                     "vlt-id": self.vlt_port_channel_id
                 }
+
+            if self.lacp:
+                body["dell-lacp:lacp-fallback"] = self.lacp.content()
 
         return [body]
 
@@ -298,6 +331,8 @@ class PortChannelInterface(Interface):
 
 
 class EthernetInterface(Interface):
+    path_detach_port_channel = "/restconf/data/ietf-interfaces:interfaces/interface=port-channel{port_channel_id}/" \
+                               "dell-interface:member-ports=ethernet{eif_id}"
 
     def __init__(self, eif_id, desc=None, enabled=None, access_vlan_id=None, mtu=None, flow_control_receive=None,
                  flow_control_transmit=None, channel_group=None, disable_switch_port=None):

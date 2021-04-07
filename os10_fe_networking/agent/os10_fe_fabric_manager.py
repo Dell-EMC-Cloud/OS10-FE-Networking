@@ -5,27 +5,16 @@ from os10_fe_networking.agent.rest_conf.interface import Interface, VLanInterfac
     EthernetInterface
 
 
-class SwitchPair:
+class OS10FEFabricManager:
     class Category(Enum):
         SPINE = "spine"
         LEAF = "leaf"
 
-    def __init__(self, addresses, category):
+    def __init__(self, address, peer_address, category):
+        self.address = address
+        self.peer_address = peer_address
         self.category = category
-        self.addresses = addresses
-        self.clients = {address: OS10FERestConfClient(address) for address in addresses}
-
-    def get(self, address):
-        return self.clients[address]
-
-
-class OS10FEFabricManager:
-
-    def __init__(self, switch_pair=None):
-        self.switch_pair = switch_pair
-
-        if self.switch_pair is None:
-            self.switch_pair = SwitchPair(["100.127.0.125", "100.127.0.126"], SwitchPair.Category.LEAF)
+        self.client = OS10FERestConfClient(address)
 
     @staticmethod
     def find_hole(sorted_set):
@@ -54,58 +43,58 @@ class OS10FEFabricManager:
 
         return hole
 
-    def _get_interface_from_cache(self, if_id, desc, interface_dict, if_type):
-        for _, interface in interface_dict[if_type].items():
+    def _match_pair(self, address):
+        return self._match_switch(address) or self._match_peer(address)
+
+    def _match_peer(self, address):
+        return address == self.peer_address
+
+    def _match_switch(self, address):
+        return address == self.address
+
+    @staticmethod
+    def _get_interface_from_cache(if_id, desc, interfaces, if_type):
+        for _, interface in interfaces[if_type].items():
             if interface["name"] == if_id and interface["description"] == desc:
                 return interface
 
         return None
 
-    def _get_interface_from_cache_by_desc(self, desc, interface_dict, if_type):
+    @staticmethod
+    def _get_interface_from_cache_by_desc(desc, interface_dict, if_type):
         for _, interface in interface_dict[if_type].items():
             if interface.get("description") == desc:
                 return interface
 
         return None
 
-    def _get_all_interfaces(self, client):
-        vlan_dict, port_channel_dict, ethernet_dict = client.get_all_interfaces_by_type()
-        return client.mgmt_ip, {
+    def _get_all_interfaces_by_type(self):
+        """
+        :return:
+            {
+                "iana-if-type:l2vlan": {
+                    "vlan1": {...},
+                    "vlan2": {...},
+                    ...
+                },
+                "iana-if-type:ieee8023adLag": {
+                    "port-channel1": {...},
+                    "port-channel2": {...},
+                    ...
+                },
+                "iana-if-type:ethernetCsmacd": {
+                    "ethernet1/1/1:1": {...},
+                    "ethernet1/1/1:2": {...},
+                    ...
+                }
+            }
+        """
+        vlan_dict, port_channel_dict, ethernet_dict = self.client.get_all_interfaces_by_type()
+        return {
             Interface.Type.VLan: vlan_dict,
             Interface.Type.PortChannel: port_channel_dict,
             Interface.Type.Ethernet: ethernet_dict
         }
-
-    def _get_all_interfaces_for_switch_pair(self, switch_pair):
-        """
-        :return:
-            {
-                "x.x.x.x": {
-                    "iana-if-type:l2vlan": {
-                        "vlan1": {...},
-                        "vlan2": {...},
-                        ...
-                    },
-                    "iana-if-type:ieee8023adLag": {
-                        "port-channel1": {...},
-                        "port-channel2": {...},
-                        ...
-                    },
-                    "iana-if-type:ethernetCsmacd": {
-                        "ethernet1/1/1:1": {...},
-                        "ethernet1/1/1:2": {...},
-                        ...
-                    }
-                },
-                ...
-            }
-        """
-        all_interfaces = {}
-        for _, client in switch_pair.clients.items():
-            mgmt_ip, interfaces = self._get_all_interfaces(client)
-            all_interfaces[mgmt_ip] = interfaces
-
-        return all_interfaces
 
     def _calc_available_port_channel(self, all_interfaces):
         port_channel_set = set()
@@ -117,61 +106,86 @@ class OS10FEFabricManager:
         # find a hole (available) port channel id
         return self.find_hole(sorted(port_channel_set))
 
+    def _calc_port_channel_id(self, ethernet_interface):
+        """
+        ethernet1/2/3:4 ==> 3
+        """
+        return ethernet_interface.split("/")[-1].split(":")[0]
+
     def _check_ethernet_interface_id(self, eif_id):
         return eif_id[8:] if "ethernet" in eif_id else eif_id
 
     # TODO(Phil Zhang), no port channel version should be supported in the future
-    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, host):
-        all_interfaces = self._get_all_interfaces_for_switch_pair(self.switch_pair)
+    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption):
+        if not self._match_switch(switch_ip):
+            return
+        # get all interfaces by type
+        all_interfaces = self._get_all_interfaces_by_type()
 
-        # fetch switch side vlan configuration and ensure configuration
-        vlan_pair = {}
-        port_channel_id = None
-        for switch_ip, interface_dict in all_interfaces.items():
-            vlan_if = self._get_interface_from_cache(vlan, cluster, interface_dict, Interface.Type.VLan)
-            vlan_pair[switch_ip] = vlan_if
-            if vlan_if is None:
-                self.switch_pair.get(switch_ip).configure_vlan(VLanInterface(vlan_id=vlan,
-                                                                             desc=cluster,
-                                                                             enabled=True))
+        vlan_if = self._ensure_vlan(cluster, all_interfaces, vlan)
 
-            # ensure port-channel
-            # for switch_ip, interface_dict in all_interfaces.items():
-            port_channel_if = self._get_interface_from_cache_by_desc(cluster, interface_dict, Interface.Type.PortChannel)
+        port_channel_id = self._ensure_port_channel(all_interfaces, switch_ip, cluster, vlan, vlan_if,
+                                                    ethernet_interface, preemption)
 
-            # port-channel doesn't exist, create
-            if port_channel_if is None:
-                # allocate a new port channel id, which should not be used by any current configuration
-                if port_channel_id is None:
-                    port_channel_id = self._calc_available_port_channel(all_interfaces)
+        self._ensure_ethernet(cluster, ethernet_interface, port_channel_id)
 
-                # create port channel
-                self.switch_pair.get(switch_ip).configure_port_channel(
-                    PortChannelInterface(channel_id=str(port_channel_id),
-                                         desc=cluster,
-                                         enabled=True,
-                                         mode="trunk",
-                                         access_vlan_id=None,
-                                         trunk_allowed_vlan_ids=vlan,
-                                         mtu=9216,
-                                         vlt_port_channel_id=port_channel_id,
-                                         spanning_tree=False))
-            # port-channel exists, make sure it's related to our vlan
-            else:
-                if not vlan_if.get("dell-interface:tagged-ports") or \
-                        port_channel_if["name"] not in vlan_if["dell-interface:tagged-ports"]:
-                    self.switch_pair.get(switch_ip).configura_vlan(
-                        VLanInterface(vlan_id=vlan, port_channel=port_channel_if["name"]))
-
+    def _ensure_ethernet(self, cluster, ethernet_interface, port_channel_id):
         ethernet_interface = self._check_ethernet_interface_id(ethernet_interface)
-        self.switch_pair.get(switch_ip).configure_ethernet_interface(EthernetInterface(eif_id=ethernet_interface,
-                                                                                       desc=cluster + "-" + host,
-                                                                                       enabled=True,
-                                                                                       access_vlan_id=None,
-                                                                                       mtu=1554,
-                                                                                       flow_control_receive=True,
-                                                                                       flow_control_transmit=False,
-                                                                                       channel_group=str(port_channel_id),
-                                                                                       disable_switch_port=True))
+        self.client.configure_ethernet_interface(EthernetInterface(eif_id=ethernet_interface,
+                                                                   desc=cluster,
+                                                                   enabled=True,
+                                                                   access_vlan_id=None,
+                                                                   mtu=1554,
+                                                                   flow_control_receive=True,
+                                                                   flow_control_transmit=False,
+                                                                   channel_group=str(port_channel_id),
+                                                                   disable_switch_port=True))
 
-        return None
+    def _ensure_port_channel(self, all_interfaces, switch_ip, cluster, vlan, vlan_if, ethernet_interface, preemption):
+        # ensure port-channel
+        port_channel_id = self._calc_port_channel_id(ethernet_interface)
+        port_channel_if = self._get_interface_from_cache("port-channel" + port_channel_id, cluster, all_interfaces,
+                                                         Interface.Type.PortChannel)
+        # port-channel doesn't exist, create
+        if port_channel_if is None:
+
+            # create port channel
+            lacp_preempt = None if preemption else False
+            self.client.configure_port_channel(PortChannelInterface(channel_id=str(port_channel_id),
+                                                                    desc=cluster,
+                                                                    enabled=True,
+                                                                    mode="trunk",
+                                                                    trunk_allowed_vlan_ids=vlan,
+                                                                    mtu=9216,
+                                                                    vlt_port_channel_id=port_channel_id,
+                                                                    spanning_tree=None,
+                                                                    bpdu=True,
+                                                                    edge_port=True,
+                                                                    lacp_fallback=True,
+                                                                    lacp_timeout=10,
+                                                                    lacp_preempt=lacp_preempt))
+        # port-channel exists, make sure it's related to our VLan
+        else:
+            if not vlan_if.get("dell-interface:tagged-ports") or \
+                    port_channel_if["name"] not in vlan_if["dell-interface:tagged-ports"]:
+                self.client.configure_vlan(
+                    VLanInterface(vlan_id=vlan, port_channel=port_channel_if["name"]))
+        return port_channel_id
+
+    def _ensure_vlan(self, cluster, all_interfaces, vlan):
+        vlan_if = self._get_interface_from_cache("vlan" + vlan, cluster, all_interfaces, Interface.Type.VLan)
+        if vlan_if is None:
+            self.client.configure_vlan(VLanInterface(vlan_id=vlan,
+                                                     desc=cluster,
+                                                     enabled=True))
+        return vlan_if
+
+    def release_ethernet_interface(self, ethernet_interface, vlan):
+        port_channel_id = self._calc_port_channel_id(ethernet_interface)
+        ethernet_interface = self._check_ethernet_interface_id(ethernet_interface)
+        self.client.detach_port_channel_from_ethernet_interface(ethernet_interface, port_channel_id)
+
+    def delete_port_channel_vlan(self, ethernet_interface, vlan):
+        port_channel_id = self._calc_port_channel_id(ethernet_interface)
+        self.client.delete_interface("port-channel" + port_channel_id)
+        self.client.delete_interface("vlan" + vlan)

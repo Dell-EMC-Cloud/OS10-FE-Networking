@@ -1,3 +1,5 @@
+from urllib.parse import quote_plus
+
 import requests
 from requests import status_codes
 from requests.auth import HTTPBasicAuth
@@ -205,6 +207,12 @@ class OS10FERestConfClient:
                                                                         ).content())
 
         return resp
+
+    def detach_port_channel_from_ethernet_interface(self, eif_id, port_channel_id):
+        url = self.base_url + EthernetInterface.path_detach_port_channel.format(
+            port_channel_id=port_channel_id, eif_id=quote_plus(eif_id))
+
+        resp = self._delete(url, None)
 
     def configure_bgp(self, bgp):
         url = self.base_url + BorderGatewayProtocol.path
