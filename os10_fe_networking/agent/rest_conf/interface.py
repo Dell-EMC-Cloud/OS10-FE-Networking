@@ -13,6 +13,11 @@ class Interface:
         PortChannel = "iana-if-type:ieee8023adLag"
         Ethernet = "iana-if-type:ethernetCsmacd"
 
+    _modes = {
+        "trunk": "MODE_L2HYBRID",
+        "access": "MODE_L2"
+    }
+
     def __init__(self, desc, enabled, if_type):
         self.desc = desc
         self.enabled = enabled
@@ -97,23 +102,23 @@ class VVRPGroup:
 
 
 class VLanInterface(Interface):
-    class PortChannelMode(Enum):
+    class PortMode(Enum):
         ACCESS = "access"
         TRUNK = "trunk"
 
     def __init__(self, vlan_id, desc=None, enabled=None, vrf=None, address=None,
-                 vvrp_group=None, port_channel=None, port_channel_mode=None, ethernet_if=None):
+                 vvrp_group=None, port=None, port_detach=None, port_mode=None):
         super(VLanInterface, self).__init__(desc, enabled, Interface.Type.VLan)
         self.vlan_id = vlan_id
         self.vrf = vrf
         self.address = address
         self.vvrp_group = vvrp_group
-        self.port_channel = port_channel
-        self.port_channel_mode = port_channel_mode
-        self.ethernet_if = ethernet_if
+        self.port = port
+        self.port_detach = port_detach
+        self.port_mode = port_mode
 
     def content(self):
-        if self.port_channel is not None:
+        if self.port is not None:
             body = {
                 "ietf-interfaces:interfaces": {
                     "dell-interface-range:interface-range": []
@@ -132,25 +137,32 @@ class VLanInterface(Interface):
             "type": "iana-if-type:l2vlan"
         }
 
-        # configure vlan for port-channel
-        if self.port_channel is not None:
-            if self.port_channel_mode == self.PortChannelMode.TRUNK:
+        # configure vlan for port-channel or ethernet interface
+        if self.port is not None:
+            if self.port_mode == self.PortMode.TRUNK:
                 body["name"] = self.vlan_id
                 body["config-template"] = {
                     "dell-interface:tagged-ports": [
-                        "port-channel" + self.port_channel
+                        self.port
+                    ],
+                    "delete-object": [
+                        "tagged-ports"
                     ]
                 }
-            elif self.port_channel_mode == self.PortChannelMode.ACCESS:
+
+                if self.port_detach is not True:
+                    body["config-template"].pop("delete-object")
+
+            elif self.port_mode == self.PortMode.ACCESS:
                 body["dell-interface:untagged-ports"] = [
-                    "port-channel" + self.port_channel
+                    self.port
                 ]
         # configure vlan for ethernet interface
-        elif self.ethernet_if is not None:
-            body["dell-interface:untagged-ports"] = [
-                "ethernet" + self.ethernet_if
-            ]
-            body.pop("type")
+        # elif self.ethernet_if is not None:
+        #     body["dell-interface:untagged-ports"] = [
+        #         "ethernet" + self.ethernet_if
+        #     ]
+        #     body.pop("type")
         else:
             if self.desc is not None:
                 body["description"] = self.desc
@@ -265,11 +277,6 @@ class PortChannelInterface(Interface):
         self.lacp = PortChannelInterface.LACPFallback(lacp_fallback, lacp_timeout, lacp_preempt)
         self.ethernet_if = ethernet_if
 
-    _modes = {
-        "trunk": "MODE_L2HYBRID",
-        "access": "MODE_L2"
-    }
-
     def interface_content(self) -> []:
         body = {
             "name": "port-channel" + self.channel_id,
@@ -331,14 +338,17 @@ class PortChannelInterface(Interface):
 
 
 class EthernetInterface(Interface):
-    path_detach_port_channel = "/restconf/data/ietf-interfaces:interfaces/interface=port-channel{port_channel_id}/" \
+    path_detach_port = "/restconf/data/ietf-interfaces:interfaces/interface={interface}/" \
                                "dell-interface:member-ports=ethernet{eif_id}"
 
-    def __init__(self, eif_id, desc=None, enabled=None, access_vlan_id=None, mtu=None, flow_control_receive=None,
-                 flow_control_transmit=None, channel_group=None, disable_switch_port=None):
+    def __init__(self, eif_id, desc=None, enabled=None, mode=None, access_vlan_id=None, trunk_allowed_vlan_ids=None,
+                 mtu=None, flow_control_receive=None, flow_control_transmit=None, channel_group=None,
+                 disable_switch_port=None):
         super(EthernetInterface, self).__init__(desc=desc, enabled=enabled, if_type=Interface.Type.Ethernet)
         self.eif_id = eif_id
+        self.mode = mode
         self.access_vlan_id = access_vlan_id
+        self.trunk_allowed_vlan_ids = trunk_allowed_vlan_ids
         self.mtu = mtu
         self.flow_control_receive = flow_control_receive
         self.flow_control_transmit = flow_control_transmit
@@ -359,6 +369,9 @@ class EthernetInterface(Interface):
 
         if self.mtu is not None:
             body["dell-interface:mtu"] = self.mtu
+
+        if self.mode is not None:
+            body["dell-interface:mode"] = self._modes[self.mode]
 
         if self.flow_control_receive is not None:
             body["dell-qos:qos-cfg"] = {

@@ -177,8 +177,8 @@ class OS10FERestConfClient:
 
         if port_channel.access_vlan_id is not None:
             resp = self._patch_and_post(url, None, VLanInterface(vlan_id=port_channel.access_vlan_id,
-                                                                 port_channel_mode=VLanInterface.PortChannelMode.ACCESS,
-                                                                 port_channel=port_channel.channel_id,).content(),)
+                                                                 port_mode=VLanInterface.PortMode.ACCESS,
+                                                                 port="port-channel" + port_channel.channel_id).content())
         # else:
         #     # switch port access vlan is auto-created, if there is no access_vlan_id in port_channel, delete it.
         #     untagged_vlan = self._get_untagged_vlan_from_port_channel(port_channel)
@@ -188,8 +188,8 @@ class OS10FERestConfClient:
 
         if port_channel.trunk_allowed_vlan_ids is not None:
             resp = self._patch_and_post(url, None, VLanInterface(vlan_id=port_channel.trunk_allowed_vlan_ids,
-                                                                 port_channel_mode=VLanInterface.PortChannelMode.TRUNK,
-                                                                 port_channel=port_channel.channel_id).content())
+                                                                 port_mode=VLanInterface.PortMode.TRUNK,
+                                                                 port="port-channel" + port_channel.channel_id).content())
 
         return resp
 
@@ -199,7 +199,13 @@ class OS10FERestConfClient:
 
         if ethernet_interface.access_vlan_id is not None:
             resp = self._patch_and_post(url, None, VLanInterface(vlan_id=ethernet_interface.access_vlan_id,
-                                                                 ethernet_if=ethernet_interface.eif_id).content())
+                                                                 port_mode=VLanInterface.PortMode.ACCESS,
+                                                                 port="ethernet" + ethernet_interface.eif_id).content())
+
+        if ethernet_interface.trunk_allowed_vlan_ids is not None:
+            resp = self._patch_and_post(url, None, VLanInterface(vlan_id=ethernet_interface.trunk_allowed_vlan_ids,
+                                                                 port_mode=VLanInterface.PortMode.TRUNK,
+                                                                 port="ethernet" + ethernet_interface.eif_id).content())
 
         if ethernet_interface.channel_group is not None:
             resp = self._patch_and_post(url, None, PortChannelInterface(channel_id=ethernet_interface.channel_group,
@@ -209,10 +215,17 @@ class OS10FERestConfClient:
         return resp
 
     def detach_port_channel_from_ethernet_interface(self, eif_id, port_channel_id):
-        url = self.base_url + EthernetInterface.path_detach_port_channel.format(
-            port_channel_id=port_channel_id, eif_id=quote_plus(eif_id))
+        url = self.base_url + EthernetInterface.path_detach_port.format(
+            interface=port_channel_id, eif_id=quote_plus(eif_id))
 
         resp = self._delete(url, None)
+
+    def detach_vlan_from_ethernet_interface(self, eif_id, vlan):
+        url = self.base_url + VLanInterface.path
+        resp = self._patch(url, None, VLanInterface(vlan_id=vlan,
+                                                    port=eif_id,
+                                                    port_detach=True,
+                                                    port_mode=VLanInterface.PortMode.TRUNK).content())
 
     def configure_bgp(self, bgp):
         url = self.base_url + BorderGatewayProtocol.path

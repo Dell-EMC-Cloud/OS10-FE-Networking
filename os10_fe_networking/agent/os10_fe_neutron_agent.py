@@ -7,6 +7,7 @@ from urllib import parse as urlparse
 import eventlet
 
 # oslo_messaging/notify/listener.py documents that monkeypatching is required
+from os10_fe_networking.agent.config import switch_opts
 from os10_fe_networking.agent.os10_fe_fabric_manager import OS10FEFabricManager
 
 eventlet.monkey_patch()
@@ -37,10 +38,12 @@ from os10_fe_networking import ironic_client
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
 CONF.import_group('AGENT', 'neutron.plugins.ml2.drivers.agent.config')
+CONF.import_group("FRONTEND_SWITCH_FABRIC", "os10_fe_networking.agent.config")
 
 
 def list_opts():
-    return [('agent', agent_config.AGENT_STATE_OPTS)]
+    return [('agent', agent_config.AGENT_STATE_OPTS),
+            ("FRONTEND_SWITCH_FABRIC", switch_opts)]
 
 
 class OS10FENeutronAgent(service.ServiceBase):
@@ -61,7 +64,7 @@ class OS10FENeutronAgent(service.ServiceBase):
 
         # TODO This is a hard code ip
         self.ironic_client = ironic_client.get_client()
-        self.fabric_manager = OS10FEFabricManager("100.127.0.125", "100.127.0.126", OS10FEFabricManager.Category.LEAF)
+        self.fabric_manager = OS10FEFabricManager(CONF)
         LOG.info('Agent OS10-FE-Networking initialized.')
 
     def start(self):
