@@ -18,6 +18,9 @@ switch_opts = [
                 help=_("Whether or not to enable port-channel configuration on target switch")),
     cfg.StrOpt('category',
                help=_("Corresponding switch category (leaf|spine).")),
+    cfg.ListOpt('link_to_spine',
+                default=['port-channel1', '61', '62', '63', '64'],
+                help=_("port-channel link to spine switch")),
 ]
 
 cfg.CONF.register_group(grp)

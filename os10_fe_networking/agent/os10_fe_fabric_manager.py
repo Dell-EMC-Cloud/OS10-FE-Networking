@@ -19,6 +19,7 @@ class OS10FEFabricManager:
         self.client = OS10FERestConfClient(self.address,
                                            conf.FRONTEND_SWITCH_FABRIC.username,
                                            self._decode_password(conf.FRONTEND_SWITCH_FABRIC.password))
+        self.link_to_spine = conf.FRONTEND_SWITCH_FABRIC.link_to_spine
 
     @staticmethod
     def _decode_password(password):
@@ -124,13 +125,13 @@ class OS10FEFabricManager:
     def _check_ethernet_interface_id(eif_id):
         return eif_id[8:] if "ethernet" in eif_id else eif_id
 
-    # TODO(Phil Zhang), no port channel version should be supported in the future
-    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
+    def ensure_configuration_for_leaf(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
         if not self._match_switch(switch_ip):
             return
         # get all interfaces by type
         all_interfaces = self._get_all_interfaces_by_type()
 
+        # ensure the configuration on the link to power scale server
         vlan_if = self._ensure_vlan(cluster, all_interfaces, vlan)
 
         port = vlan
@@ -139,6 +140,29 @@ class OS10FEFabricManager:
                                              ethernet_interface, preemption)
 
         self._ensure_ethernet(cluster, ethernet_interface, port, access_mode)
+
+        # ensure the configuration on the link to spine switch
+        self._ensure_link_to_spine(vlan, vlan_if)
+
+    def ensure_configuration_for_spine(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
+        pass
+
+    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
+        if self.category == self.Category.LEAF:
+            self.ensure_configuration_for_leaf(switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode)
+        elif self.category == self.Category.SPINE:
+            self.ensure_configuration_for_spine(switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode)
+
+    def _ensure_link_to_spine(self, vlan, vlan_if):
+        # TODO, 1. ensure port channel exists. 2. ensure the ethernet interfaces from link_to_switch in the port channel
+        port_channel_name = self.link_to_spine[0]
+        if not vlan_if or \
+                not vlan_if.get("dell-interface:tagged-ports") or \
+                port_channel_name not in vlan_if["dell-interface:tagged-ports"]:
+            self.client.configure_vlan(
+                VLanInterface(vlan_id=vlan,
+                              port=port_channel_name,
+                              port_mode=VLanInterface.PortMode.TRUNK))
 
     def _ensure_ethernet(self, cluster, eif_id, port_id, access_mode):
         eif_id = self._check_ethernet_interface_id(eif_id)
