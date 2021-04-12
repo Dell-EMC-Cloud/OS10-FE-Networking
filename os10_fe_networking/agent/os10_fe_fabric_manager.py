@@ -56,7 +56,7 @@ class OS10FEFabricManager:
     @staticmethod
     def _get_interface_from_cache(if_id, desc, interfaces, if_type):
         for _, interface in interfaces[if_type].items():
-            if interface["name"] == if_id and interface["description"] == desc:
+            if interface["name"] == if_id:
                 return interface
 
         return None
@@ -113,11 +113,12 @@ class OS10FEFabricManager:
         """
         return ethernet_interface.split("/")[-1].split(":")[0]
 
-    def _check_ethernet_interface_id(self, eif_id):
+    @staticmethod
+    def _check_ethernet_interface_id(eif_id):
         return eif_id[8:] if "ethernet" in eif_id else eif_id
 
     # TODO(Phil Zhang), no port channel version should be supported in the future
-    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption):
+    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
         if not self._match_switch(switch_ip):
             return
         # get all interfaces by type
@@ -130,14 +131,14 @@ class OS10FEFabricManager:
             port = self._ensure_port_channel(all_interfaces, switch_ip, cluster, vlan, vlan_if,
                                              ethernet_interface, preemption)
 
-        self._ensure_ethernet(cluster, ethernet_interface, port)
+        self._ensure_ethernet(cluster, ethernet_interface, port, access_mode)
 
-    def _ensure_ethernet(self, cluster, ethernet_interface, port_id):
-        ethernet_interface = self._check_ethernet_interface_id(ethernet_interface)
+    def _ensure_ethernet(self, cluster, eif_id, port_id, access_mode):
+        eif_id = self._check_ethernet_interface_id(eif_id)
 
         # configure ethernet interface with port-channel
         if self.enable_port_channel:
-            self.client.configure_ethernet_interface(EthernetInterface(eif_id=ethernet_interface,
+            self.client.configure_ethernet_interface(EthernetInterface(eif_id=eif_id,
                                                                        desc=cluster,
                                                                        enabled=True,
                                                                        mtu=1554,
@@ -147,14 +148,18 @@ class OS10FEFabricManager:
                                                                        disable_switch_port=True))
         # configure ethernet interface with vlan directly
         else:
-            self.client.configure_ethernet_interface(EthernetInterface(eif_id=ethernet_interface,
-                                                                       desc=cluster,
-                                                                       enabled=True,
-                                                                       mode="trunk",
-                                                                       mtu=1554,
-                                                                       flow_control_receive=True,
-                                                                       flow_control_transmit=False,
-                                                                       trunk_allowed_vlan_ids=str(port_id)))
+            ethernet_interface = EthernetInterface(eif_id=eif_id,
+                                                   desc=cluster,
+                                                   enabled=True,
+                                                   mtu=1554,
+                                                   flow_control_receive=True,
+                                                   flow_control_transmit=False)
+            if access_mode == "access":
+                ethernet_interface.access_vlan_id = str(port_id)
+            elif access_mode == "trunk":
+                ethernet_interface.mode = "trunk"
+                ethernet_interface.trunk_allowed_vlan_ids = str(port_id)
+            self.client.configure_ethernet_interface(ethernet_interface)
 
     def _ensure_port_channel(self, all_interfaces, switch_ip, cluster, vlan, vlan_if, ethernet_interface, preemption):
         # ensure port-channel
@@ -188,20 +193,20 @@ class OS10FEFabricManager:
         return port_channel_id
 
     def _ensure_vlan(self, cluster, all_interfaces, vlan):
-        vlan_if = self._get_interface_from_cache("vlan" + vlan, cluster, all_interfaces, Interface.Type.VLan)
+        vlan_if = self._get_interface_from_cache("vlan%s" % vlan, cluster, all_interfaces, Interface.Type.VLan)
         if vlan_if is None:
             self.client.configure_vlan(VLanInterface(vlan_id=vlan,
                                                      desc=cluster,
                                                      enabled=True))
         return vlan_if
 
-    def release_ethernet_interface(self, ethernet_interface, vlan):
+    def release_ethernet_interface(self, ethernet_interface, vlan, access_mode):
         if self.enable_port_channel:
             port_channel_id = "port-channel" + self._calc_port_channel_id(ethernet_interface)
             ethernet_interface = self._check_ethernet_interface_id(ethernet_interface)
             self.client.detach_port_channel_from_ethernet_interface(ethernet_interface, port_channel_id)
         else:
-            self.client.detach_vlan_from_ethernet_interface(ethernet_interface, vlan)
+            self.client.detach_vlan_from_ethernet_interface(ethernet_interface, vlan, access_mode)
 
     def delete_port_channel_vlan(self, ethernet_interface, vlan):
         if self.enable_port_channel:

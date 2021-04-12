@@ -24,10 +24,14 @@ CONF(sys.argv[1:])
 
 leaf1 = OS10FEFabricManager(CONF)
 
-import pdb
-pdb.set_trace()
-leaf1.ensure_configuration("100.127.0.125", "ethernet1/1/3", "90", "CustomerTest1", True)
+leaf1.ensure_configuration("100.127.0.125", "ethernet1/1/1:1", "2001", "CustomerTest1", True, "access")
+leaf1.ensure_configuration("100.127.0.125", "ethernet1/1/1:1", "2000", "CustomerTest1", True, "access")
 
-leaf1.release_ethernet_interface("ethernet1/1/3", "90")
-leaf1.delete_port_channel_vlan("ethernet1/1/3", "90")
+#leaf1.release_ethernet_interface("ethernet1/1/1:1", "2000", "access")
+#leaf1.delete_port_channel_vlan("ethernet1/1/1:1", "2000")
 
+
+leaf1.ensure_configuration("100.127.0.125", "ethernet1/1/1:1", "2500", "CustomerTest1", True, "trunk")
+
+#leaf1.release_ethernet_interface("ethernet1/1/1:1", "2500", "trunk")
+#leaf1.delete_port_channel_vlan("ethernet1/1/1:1", "2500")

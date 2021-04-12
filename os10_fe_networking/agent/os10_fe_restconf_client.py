@@ -23,52 +23,49 @@ class OS10FERestConfClient:
         self.headers = {'Content-type': 'application/json', 'Accept': 'application/json'}
         self.mgmt_ip = mgmt_ip
         self.base_url = "https://" + mgmt_ip
+        self.session = requests.Session()
+        self.session.auth = requests.auth.HTTPBasicAuth(self.username, self.password)
 
     def _get(self, url, parameters):
-        resp = requests.get(url,
-                            params=parameters,
-                            auth=HTTPBasicAuth(self.username, self.password),
-                            verify=self.verify,
-                            headers=self.headers)
+        resp = self.session.get(url,
+                                params=parameters,
+                                verify=self.verify,
+                                headers=self.headers)
         print(resp.json())
         return resp
 
     def _post(self, url, parameters, body):
-        resp = requests.post(url,
-                             params=parameters,
-                             json=body,
-                             auth=HTTPBasicAuth(self.username, self.password),
-                             verify=self.verify,
-                             headers=self.headers)
+        resp = self.session.post(url,
+                                 params=parameters,
+                                 json=body,
+                                 verify=self.verify,
+                                 headers=self.headers)
         print(resp)
         return resp
 
     def _put(self, url, parameters, body):
-        resp = requests.put(url,
-                            params=parameters,
-                            json=body,
-                            auth=HTTPBasicAuth(self.username, self.password),
-                            verify=self.verify,
-                            headers=self.headers)
+        resp = self.session.put(url,
+                                params=parameters,
+                                json=body,
+                                verify=self.verify,
+                                headers=self.headers)
         print(resp)
         return resp
 
     def _delete(self, url, parameters):
-        resp = requests.delete(url,
-                               params=parameters,
-                               auth=HTTPBasicAuth(self.username, self.password),
-                               verify=self.verify,
-                               headers=self.headers)
+        resp = self.session.delete(url,
+                                   params=parameters,
+                                   verify=self.verify,
+                                   headers=self.headers)
         print(resp)
         return resp
 
     def _patch(self, url, parameters, body):
-        resp = requests.patch(url,
-                              params=parameters,
-                              json=body,
-                              auth=HTTPBasicAuth(self.username, self.password),
-                              verify=self.verify,
-                              headers=self.headers)
+        resp = self.session.patch(url,
+                                  params=parameters,
+                                  json=body,
+                                  verify=self.verify,
+                                  headers=self.headers)
         print(resp)
         return resp
 
@@ -220,12 +217,19 @@ class OS10FERestConfClient:
 
         resp = self._delete(url, None)
 
-    def detach_vlan_from_ethernet_interface(self, eif_id, vlan):
-        url = self.base_url + VLanInterface.path
-        resp = self._patch(url, None, VLanInterface(vlan_id=vlan,
-                                                    port=eif_id,
-                                                    port_detach=True,
-                                                    port_mode=VLanInterface.PortMode.TRUNK).content())
+    def detach_vlan_from_ethernet_interface(self, eif_id, vlan, access_mode):
+
+        if access_mode == "access":
+            url = self.base_url + VLanInterface.path
+            resp = self._patch_and_post(url, None, VLanInterface(vlan_id="1",
+                                                                 port_mode=VLanInterface.PortMode.ACCESS,
+                                                                 port=eif_id).content())
+        elif access_mode == "trunk":
+            url = self.base_url + VLanInterface.path
+            resp = self._patch(url, None, VLanInterface(vlan_id=vlan,
+                                                        port=eif_id,
+                                                        port_detach=True,
+                                                        port_mode=VLanInterface.PortMode.TRUNK).content())
 
     def configure_bgp(self, bgp):
         url = self.base_url + BorderGatewayProtocol.path

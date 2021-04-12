@@ -118,7 +118,7 @@ class VLanInterface(Interface):
         self.port_mode = port_mode
 
     def content(self):
-        if self.port is not None:
+        if self.port is not None and self.port_mode == self.PortMode.TRUNK:
             body = {
                 "ietf-interfaces:interfaces": {
                     "dell-interface-range:interface-range": []
