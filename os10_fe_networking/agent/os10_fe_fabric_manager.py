@@ -1,3 +1,4 @@
+import base64
 from enum import Enum
 
 from os10_fe_networking.agent.os10_fe_restconf_client import OS10FERestConfClient
@@ -15,7 +16,13 @@ class OS10FEFabricManager:
         self.peer_address = None
         self.category = self.Category.LEAF if conf.FRONTEND_SWITCH_FABRIC.category == "leaf" else self.Category.SPINE
         self.enable_port_channel = conf.FRONTEND_SWITCH_FABRIC.enable_port_channel
-        self.client = OS10FERestConfClient(self.address)
+        self.client = OS10FERestConfClient(self.address,
+                                           conf.FRONTEND_SWITCH_FABRIC.username,
+                                           self._decode_password(conf.FRONTEND_SWITCH_FABRIC.password))
+
+    @staticmethod
+    def _decode_password(password):
+        return base64.b64decode(password).decode()
 
     @staticmethod
     def find_hole(sorted_set):

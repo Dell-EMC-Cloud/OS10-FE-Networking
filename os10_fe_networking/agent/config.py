@@ -7,6 +7,12 @@ grp = cfg.OptGroup('FRONTEND_SWITCH_FABRIC')
 switch_opts = [
     cfg.StrOpt('switch_ip',
                help=_("The frontend switch IP address.")),
+    cfg.StrOpt('username',
+               default="admin",
+               help=_("The frontend switch IP address.")),
+    cfg.StrOpt('password',
+               default="REBuZ2Vyb3VzMQ==",
+               help=_("The frontend switch IP address.")),
     cfg.BoolOpt("enable_port_channel",
                 default=False,
                 help=_("Whether or not to enable port-channel configuration on target switch")),
