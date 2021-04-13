@@ -390,4 +390,4 @@ class EthernetInterface(Interface):
 
     @staticmethod
     def extract_numeric_id(if_id):
-        return int(if_id[12:])
+        return int(if_id[8:])
