@@ -11,15 +11,20 @@ class OS10FEFabricManager:
         SPINE = "spine"
         LEAF = "leaf"
 
+    @staticmethod
+    def create(conf):
+        if conf.FRONTEND_SWITCH_FABRIC.category == OS10FEFabricManager.Category.LEAF.value:
+            return LeafManager(conf)
+        elif conf.FRONTEND_SWITCH_FABRIC.category == OS10FEFabricManager.Category.SPINE.value:
+            return SpineManager(conf)
+
     def __init__(self, conf):
         self.address = conf.FRONTEND_SWITCH_FABRIC.switch_ip
-        self.peer_address = None
-        self.category = self.Category.LEAF if conf.FRONTEND_SWITCH_FABRIC.category == "leaf" else self.Category.SPINE
         self.enable_port_channel = conf.FRONTEND_SWITCH_FABRIC.enable_port_channel
         self.client = OS10FERestConfClient(self.address,
                                            conf.FRONTEND_SWITCH_FABRIC.username,
                                            self._decode_password(conf.FRONTEND_SWITCH_FABRIC.password))
-        self.link_to_spine = conf.FRONTEND_SWITCH_FABRIC.link_to_spine
+        self.port_channel_ethernet_mapping = conf.FRONTEND_SWITCH_FABRIC.port_channel_ethernet_mapping
 
     @staticmethod
     def _decode_password(password):
@@ -52,15 +57,6 @@ class OS10FEFabricManager:
 
         return hole
 
-    def _match_pair(self, address):
-        return self._match_switch(address) or self._match_peer(address)
-
-    def _match_peer(self, address):
-        return address == self.peer_address
-
-    def _match_switch(self, address):
-        return address == self.address
-
     @staticmethod
     def _get_interface_from_cache(if_id, interfaces, if_type):
         for _, interface in interfaces[if_type].items():
@@ -76,6 +72,13 @@ class OS10FEFabricManager:
                 return interface
 
         return None
+
+    @staticmethod
+    def _check_ethernet_interface_id(eif_id):
+        return eif_id[8:] if "ethernet" in eif_id else eif_id
+
+    def _match_switch(self, address):
+        return address == self.address
 
     def _get_all_interfaces_by_type(self):
         """
@@ -115,19 +118,120 @@ class OS10FEFabricManager:
         # find a hole (available) port channel id
         return self.find_hole(sorted(port_channel_set))
 
-    def _calc_port_channel_id(self, ethernet_interface):
+    @staticmethod
+    def _calc_port_channel_id(ethernet_interface):
         """
         ethernet1/2/3:4 ==> 3
         """
         return ethernet_interface.split("/")[-1].split(":")[0]
 
-    @staticmethod
-    def _check_ethernet_interface_id(eif_id):
-        return eif_id[8:] if "ethernet" in eif_id else eif_id
+    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
+        pass
 
-    def ensure_configuration_for_leaf(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
+    @staticmethod
+    def _parse_preconfig_link(port_channel_ethernet_mapping):
+        config = {}
+        for _, port_channel in port_channel_ethernet_mapping.items():
+            config[port_channel] = []
+
+        for ethernet_interface, port_channel in port_channel_ethernet_mapping.items():
+            config[port_channel].append(ethernet_interface)
+
+        return config
+
+    def _ensure_preconfig_link(self, all_interfaces, port_channel_ethernet_mapping, vlan, vlan_if):
+        link_config = self._parse_preconfig_link(port_channel_ethernet_mapping)
+
+        for port_channel_name, eif_list in link_config.items():
+            # ensure port channel exists
+            port_channel_id = str(PortChannelInterface.extract_numeric_id(port_channel_name))
+
+            port_channel_if = self._get_interface_from_cache(port_channel_name, all_interfaces,
+                                                             Interface.Type.PortChannel)
+
+            # port channel doesn't exist
+            if port_channel_if is None:
+                # create port channel
+                self.client.configure_port_channel(PortChannelInterface(channel_id=str(port_channel_id),
+                                                                        enabled=True,
+                                                                        mode="trunk",
+                                                                        mtu=9216,
+                                                                        vlt_port_channel_id=port_channel_id))
+                # attach ethernet interfaces to port channel
+                for eif in eif_list:
+                    eif_id = self._check_ethernet_interface_id(eif)
+                    self.client.configure_ethernet_interface(EthernetInterface(eif_id=eif_id,
+                                                                               enabled=True,
+                                                                               mtu=9216,
+                                                                               flow_control_receive=True,
+                                                                               flow_control_transmit=False,
+                                                                               channel_group=port_channel_id,
+                                                                               disable_switch_port=True))
+            # port channel exists
+            else:
+                # determine ethernet interfaces to be attached
+                if port_channel_if.get("dell-interface:member-ports"):
+                    for member_port in port_channel_if["dell-interface:member-ports"]:
+                        if member_port["name"] in eif_list:
+                            eif_list.remove(member_port["name"])
+
+                # attach ethernet interfaces to port channel
+                for eif in eif_list:
+                    eif_id = self._check_ethernet_interface_id(eif)
+                    self.client.configure_ethernet_interface(EthernetInterface(eif_id=eif_id,
+                                                                               enabled=True,
+                                                                               mtu=9216,
+                                                                               flow_control_receive=True,
+                                                                               flow_control_transmit=False,
+                                                                               channel_group=port_channel_id,
+                                                                               disable_switch_port=True))
+
+            # attach port channel to vlan in trunk mode
+            if not vlan_if or \
+                    not vlan_if.get("dell-interface:tagged-ports") or \
+                    port_channel_name not in vlan_if["dell-interface:tagged-ports"]:
+                self.client.configure_vlan(
+                    VLanInterface(vlan_id=str(vlan),
+                                  port=port_channel_name,
+                                  port_mode=VLanInterface.PortMode.TRUNK))
+
+    def _ensure_vlan(self, cluster, all_interfaces, vlan):
+        vlan_if = self._get_interface_from_cache("vlan%s" % vlan, all_interfaces, Interface.Type.VLan)
+        if vlan_if is None:
+            self.client.configure_vlan(VLanInterface(vlan_id=str(vlan),
+                                                     desc=cluster,
+                                                     enabled=True))
+        return vlan_if
+
+
+class SpineManager(OS10FEFabricManager):
+
+    def _ensure_configuration_for_spine(self, ethernet_interface, vlan, cluster, preemption, access_mode):
+        # get all interfaces by type
+        all_interfaces = self._get_all_interfaces_by_type()
+
+        # ensure the configuration on the link to power scale server
+        vlan_if = self._ensure_vlan(cluster, all_interfaces, vlan)
+
+        # ensure the configuration on the link to spine switch
+        self._ensure_preconfig_link(all_interfaces, self.port_channel_ethernet_mapping, vlan, vlan_if)
+
+    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
         if not self._match_switch(switch_ip):
             return
+
+        self._ensure_configuration_for_spine(ethernet_interface, vlan, cluster, preemption, access_mode)
+
+
+class LeafManager(OS10FEFabricManager):
+
+    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
+        if not self._match_switch(switch_ip):
+            return
+
+        self._ensure_configuration_for_leaf(ethernet_interface, vlan, cluster, preemption, access_mode)
+
+    def _ensure_configuration_for_leaf(self, ethernet_interface, vlan, cluster, preemption, access_mode):
         # get all interfaces by type
         all_interfaces = self._get_all_interfaces_by_type()
 
@@ -136,75 +240,13 @@ class OS10FEFabricManager:
 
         port = vlan
         if self.enable_port_channel:
-            port = self._ensure_port_channel(all_interfaces, switch_ip, cluster, vlan, vlan_if,
+            port = self._ensure_port_channel(all_interfaces, cluster, vlan, vlan_if,
                                              ethernet_interface, preemption)
 
         self._ensure_ethernet(cluster, ethernet_interface, port, access_mode)
 
         # ensure the configuration on the link to spine switch
-        self._ensure_link_to_spine(all_interfaces, vlan, vlan_if)
-
-    def ensure_configuration_for_spine(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
-        pass
-
-    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
-        if self.category == self.Category.LEAF:
-            self.ensure_configuration_for_leaf(switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode)
-        elif self.category == self.Category.SPINE:
-            self.ensure_configuration_for_spine(switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode)
-
-    def _ensure_link_to_spine(self, all_interfaces, vlan, vlan_if):
-        # ensure port channel exists
-        port_channel_name = self.link_to_spine[0]
-        port_channel_id = PortChannelInterface.extract_numeric_id(port_channel_name)
-
-        port_channel_if = self._get_interface_from_cache(port_channel_name, all_interfaces, Interface.Type.PortChannel)
-
-        # port channel doesn't exist
-        if port_channel_if is None:
-            # create port channel
-            self.client.configure_port_channel(PortChannelInterface(channel_id=str(port_channel_id),
-                                                                    enabled=True,
-                                                                    mode="trunk",
-                                                                    mtu=9216,
-                                                                    vlt_port_channel_id=port_channel_id))
-            # attach ethernet interfaces to port channel
-            for eif in self.link_to_spine[1:]:
-                eif_id = self._check_ethernet_interface_id(eif)
-                self.client.configure_ethernet_interface(EthernetInterface(eif_id=eif_id,
-                                                                           enabled=True,
-                                                                           mtu=9216,
-                                                                           flow_control_receive=True,
-                                                                           flow_control_transmit=False,
-                                                                           channel_group=port_channel_id,
-                                                                           disable_switch_port=True))
-        # port channel exists
-        else:
-            # determine ethernet interfaces to be attached
-            eifs = self.link_to_spine[1:]
-            if port_channel_if.get("dell-interface:member-ports"):
-                for member_port in port_channel_if["dell-interface:member-ports"]:
-                    eifs.remove(member_port["name"])
-
-            # attach ethernet interfaces to port channel
-            for eif in eifs:
-                eif_id = self._check_ethernet_interface_id(eif)
-                self.client.configure_ethernet_interface(EthernetInterface(eif_id=eif_id,
-                                                                           enabled=True,
-                                                                           mtu=9216,
-                                                                           flow_control_receive=True,
-                                                                           flow_control_transmit=False,
-                                                                           channel_group=port_channel_id,
-                                                                           disable_switch_port=True))
-
-        # attach port channel to vlan in trunk mode
-        if not vlan_if or \
-                not vlan_if.get("dell-interface:tagged-ports") or \
-                port_channel_name not in vlan_if["dell-interface:tagged-ports"]:
-            self.client.configure_vlan(
-                VLanInterface(vlan_id=vlan,
-                              port=port_channel_name,
-                              port_mode=VLanInterface.PortMode.TRUNK))
+        self._ensure_preconfig_link(all_interfaces, self.port_channel_ethernet_mapping, vlan, vlan_if)
 
     def _ensure_ethernet(self, cluster, eif_id, port_id, access_mode):
         eif_id = self._check_ethernet_interface_id(eif_id)
@@ -234,7 +276,7 @@ class OS10FEFabricManager:
                 ethernet_interface.trunk_allowed_vlan_ids = str(port_id)
             self.client.configure_ethernet_interface(ethernet_interface)
 
-    def _ensure_port_channel(self, all_interfaces, switch_ip, cluster, vlan, vlan_if, ethernet_interface, preemption):
+    def _ensure_port_channel(self, all_interfaces, cluster, vlan, vlan_if, ethernet_interface, preemption):
         # ensure port-channel
         port_channel_id = self._calc_port_channel_id(ethernet_interface)
         port_channel_if = self._get_interface_from_cache("port-channel" + port_channel_id, all_interfaces,
@@ -264,14 +306,6 @@ class OS10FEFabricManager:
                 self.client.configure_vlan(
                     VLanInterface(vlan_id=vlan, port=port_channel_if["name"]))
         return port_channel_id
-
-    def _ensure_vlan(self, cluster, all_interfaces, vlan):
-        vlan_if = self._get_interface_from_cache("vlan%s" % vlan, all_interfaces, Interface.Type.VLan)
-        if vlan_if is None:
-            self.client.configure_vlan(VLanInterface(vlan_id=vlan,
-                                                     desc=cluster,
-                                                     enabled=True))
-        return vlan_if
 
     def release_ethernet_interface(self, ethernet_interface, vlan, access_mode):
         if self.enable_port_channel:

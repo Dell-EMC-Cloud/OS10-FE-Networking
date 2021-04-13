@@ -1,7 +1,7 @@
 import sys
 from oslo_config import cfg
 
-from os10_fe_networking.agent.os10_fe_fabric_manager import OS10FEFabricManager
+from os10_fe_networking.agent.os10_fe_fabric_manager import LeafManager
 import logging
 from http.client import HTTPConnection  # py3
 
@@ -22,7 +22,7 @@ CONF = cfg.CONF
 CONF.import_group("FRONTEND_SWITCH_FABRIC", "os10_fe_networking.agent.config")
 CONF(sys.argv[1:])
 
-leaf1 = OS10FEFabricManager(CONF)
+leaf1 = LeafManager(CONF)
 
 leaf1.ensure_configuration("100.127.0.125", "ethernet1/1/1:1", "2001", "CustomerTest1", True, "access")
 leaf1.ensure_configuration("100.127.0.125", "ethernet1/1/1:1", "2000", "CustomerTest1", True, "access")

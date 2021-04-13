@@ -18,9 +18,12 @@ switch_opts = [
                 help=_("Whether or not to enable port-channel configuration on target switch")),
     cfg.StrOpt('category',
                help=_("Corresponding switch category (leaf|spine).")),
-    cfg.ListOpt('link_to_spine',
-                default=['port-channel1', '61', '62', '63', '64'],
-                help=_("port-channel link to spine switch")),
+    cfg.DictOpt('port_channel_ethernet_mapping',
+                default={'ethernet1/1/1': 'port-channel1',
+                         'ethernet1/1/2': 'port-channel1',
+                         'ethernet1/1/3': 'port-channel1',
+                         'ethernet1/1/4': 'port-channel1'},
+                help=_("pre-defined port channel links. For example, the port channel between leaf and spine")),
 ]
 
 cfg.CONF.register_group(grp)

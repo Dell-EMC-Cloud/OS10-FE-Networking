@@ -61,6 +61,7 @@ class OS10FERestConfClient:
         return resp
 
     def _patch(self, url, parameters, body):
+        print(body)
         resp = self.session.patch(url,
                                   params=parameters,
                                   json=body,

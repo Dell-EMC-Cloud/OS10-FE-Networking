@@ -157,12 +157,6 @@ class VLanInterface(Interface):
                 body["dell-interface:untagged-ports"] = [
                     self.port
                 ]
-        # configure vlan for ethernet interface
-        # elif self.ethernet_if is not None:
-        #     body["dell-interface:untagged-ports"] = [
-        #         "ethernet" + self.ethernet_if
-        #     ]
-        #     body.pop("type")
         else:
             if self.desc is not None:
                 body["description"] = self.desc
@@ -390,4 +384,4 @@ class EthernetInterface(Interface):
 
     @staticmethod
     def extract_numeric_id(if_id):
-        return int(if_id[8:])
+        return int(if_id[12:])
