@@ -61,7 +61,6 @@ class OS10FERestConfClient:
         return resp
 
     def _patch(self, url, parameters, body):
-        print(body)
         resp = self.session.patch(url,
                                   params=parameters,
                                   json=body,
@@ -212,23 +211,16 @@ class OS10FERestConfClient:
 
         return resp
 
-    def detach_port_channel_from_ethernet_interface(self, eif_id, port_channel_id):
-        url = self.base_url + EthernetInterface.path_detach_port.format(
-            interface=port_channel_id, eif_id=quote_plus(eif_id))
-
-        resp = self._delete(url, None)
-
-    def detach_vlan_from_ethernet_interface(self, eif_id, vlan, access_mode):
-
+    def detach_port_from_vlan(self, port_id, vlan, access_mode):
         if access_mode == "access":
             url = self.base_url + VLanInterface.path
             resp = self._patch_and_post(url, None, VLanInterface(vlan_id="1",
                                                                  port_mode=VLanInterface.PortMode.ACCESS,
-                                                                 port=eif_id).content())
+                                                                 port=port_id).content())
         elif access_mode == "trunk":
             url = self.base_url + VLanInterface.path
             resp = self._patch(url, None, VLanInterface(vlan_id=vlan,
-                                                        port=eif_id,
+                                                        port=port_id,
                                                         port_detach=True,
                                                         port_mode=VLanInterface.PortMode.TRUNK).content())
 

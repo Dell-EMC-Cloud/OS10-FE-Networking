@@ -251,7 +251,7 @@ class OS10FENeutronAgent(service.ServiceBase):
                     if port_id == device_detail["port_id"]:
                         cluster, segment, switch_ip, switch_port, preemption, access_mode = self.get_info(device_detail)
 
-                        self.fabric_manager.release_ethernet_interface(switch_port, segment, access_mode)
+                        self.fabric_manager.detach_port_from_vlan(switch_port, segment, access_mode)
 
             for network_id in deleted_networks:
                 for device_detail in self.cached_devices_details_list:

@@ -1,11 +1,10 @@
 import sys
 from oslo_config import cfg
 
-from os10_fe_networking.agent.os10_fe_fabric_manager import LeafManager
+from os10_fe_networking.agent.os10_fe_fabric_manager import LeafManager, OS10FEFabricManager
 import logging
 from http.client import HTTPConnection  # py3
 
-from os10_fe_networking.agent.rest_conf.interface import VLanInterface
 
 log = logging.getLogger('urllib3')
 log.setLevel(logging.DEBUG)
@@ -22,16 +21,18 @@ CONF = cfg.CONF
 CONF.import_group("FRONTEND_SWITCH_FABRIC", "os10_fe_networking.agent.config")
 CONF(sys.argv[1:])
 
-leaf1 = LeafManager(CONF)
+manager = OS10FEFabricManager.create(CONF)
 
-leaf1.ensure_configuration("100.127.0.125", "ethernet1/1/1:1", "2001", "CustomerTest1", True, "access")
-leaf1.ensure_configuration("100.127.0.125", "ethernet1/1/1:1", "2000", "CustomerTest1", True, "access")
+import pdb
+pdb.set_trace()
+manager.ensure_configuration("100.127.0.125", "ethernet1/1/3", "1499", "CustomerTest1", True, "access")
+manager.ensure_configuration("100.127.0.125", "ethernet1/1/3", "1500", "CustomerTest1", True, "trunk")
 
-#leaf1.release_ethernet_interface("ethernet1/1/1:1", "2000", "access")
-#leaf1.delete_port_channel_vlan("ethernet1/1/1:1", "2000")
+manager.detach_port_from_vlan("ethernet1/1/3", "1499", "access")
+manager.detach_port_from_vlan("ethernet1/1/3", "1500", "trunk")
+
+manager.delete_port_channel_vlan("ethernet1/1/3", "1499")
+manager.delete_port_channel_vlan("ethernet1/1/3", "1500")
 
 
-leaf1.ensure_configuration("100.127.0.125", "ethernet1/1/1:1", "2500", "CustomerTest1", True, "trunk")
 
-#leaf1.release_ethernet_interface("ethernet1/1/1:1", "2500", "trunk")
-#leaf1.delete_port_channel_vlan("ethernet1/1/1:1", "2500")

@@ -203,6 +203,17 @@ class OS10FEFabricManager:
                                                      enabled=True))
         return vlan_if
 
+    def detach_port_from_vlan(self, ethernet_interface, vlan, access_mode):
+        port_id = "port-channel" + self._calc_port_channel_id(ethernet_interface) if self.enable_port_channel \
+            else ethernet_interface
+        self.client.detach_port_from_vlan(port_id, vlan, access_mode)
+
+    def delete_port_channel_vlan(self, ethernet_interface, vlan):
+        if self.enable_port_channel:
+            port_channel_id = self._calc_port_channel_id(ethernet_interface)
+            self.client.delete_interface("port-channel" + port_channel_id)
+        self.client.delete_interface("vlan" + vlan)
+
 
 class SpineManager(OS10FEFabricManager):
 
@@ -217,10 +228,10 @@ class SpineManager(OS10FEFabricManager):
         self._ensure_preconfig_link(all_interfaces, self.port_channel_ethernet_mapping, vlan, vlan_if)
 
     def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
-        if not self._match_switch(switch_ip):
-            return
-
         self._ensure_configuration_for_spine(ethernet_interface, vlan, cluster, preemption, access_mode)
+
+    def detach_port_from_vlan(self, ethernet_interface, vlan, access_mode):
+        pass
 
 
 class LeafManager(OS10FEFabricManager):
@@ -307,16 +318,3 @@ class LeafManager(OS10FEFabricManager):
                     VLanInterface(vlan_id=vlan, port=port_channel_if["name"]))
         return port_channel_id
 
-    def release_ethernet_interface(self, ethernet_interface, vlan, access_mode):
-        if self.enable_port_channel:
-            port_channel_id = "port-channel" + self._calc_port_channel_id(ethernet_interface)
-            ethernet_interface = self._check_ethernet_interface_id(ethernet_interface)
-            self.client.detach_port_channel_from_ethernet_interface(ethernet_interface, port_channel_id)
-        else:
-            self.client.detach_vlan_from_ethernet_interface(ethernet_interface, vlan, access_mode)
-
-    def delete_port_channel_vlan(self, ethernet_interface, vlan):
-        if self.enable_port_channel:
-            port_channel_id = self._calc_port_channel_id(ethernet_interface)
-            self.client.delete_interface("port-channel" + port_channel_id)
-        self.client.delete_interface("vlan" + vlan)
