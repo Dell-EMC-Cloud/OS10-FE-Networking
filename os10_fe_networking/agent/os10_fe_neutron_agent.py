@@ -65,10 +65,10 @@ class OS10FENeutronAgent(service.ServiceBase):
     def start(self):
         LOG.info('Starting agent OS10-FE-Networking.')
         self.setup_rpc()
-        self.heartbeat = loopingcall.FixedIntervalLoopingCall(
-            self._report_state)
-        self.heartbeat.start(interval=CONF.AGENT.report_interval,
-                             initial_delay=CONF.AGENT.report_interval)
+#        self.heartbeat = loopingcall.FixedIntervalLoopingCall(
+#            self._report_state)
+#        self.heartbeat.start(interval=CONF.AGENT.report_interval,
+#                             initial_delay=CONF.AGENT.report_interval)
         self.connection.consume_in_threads()
         self.daemon_loop()
 
@@ -251,14 +251,14 @@ class OS10FENeutronAgent(service.ServiceBase):
                     if port_id == device_detail["port_id"]:
                         cluster, segment, switch_ip, switch_port, preemption, access_mode = self.get_info(device_detail)
 
-                        self.fabric_manager.detach_port_from_vlan(switch_port, segment, access_mode)
+                        self.fabric_manager.detach_port_from_vlan(switch_ip, switch_port, segment, access_mode)
 
             for network_id in deleted_networks:
                 for device_detail in self.cached_devices_details_list:
                     if network_id == device_detail["network_id"]:
                         cluster, segment, switch_ip, switch_port, preemption, access_mode = self.get_info(device_detail)
 
-                        self.fabric_manager.delete_port_channel_vlan(switch_port, segment)
+                        self.fabric_manager.delete_port_channel_vlan(switch_ip, switch_port, segment)
             if start_up or updated_ports:
                 self.refresh_devices_details_list()
                 for device_detail in self.cached_devices_details_list:

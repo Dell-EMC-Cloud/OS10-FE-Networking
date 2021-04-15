@@ -203,16 +203,22 @@ class OS10FEFabricManager:
                                                      enabled=True))
         return vlan_if
 
-    def detach_port_from_vlan(self, ethernet_interface, vlan, access_mode):
+    def detach_port_from_vlan(self, switch_ip, ethernet_interface, vlan, access_mode):
+        if not self._match_switch(switch_ip):
+            return
+
         port_id = "port-channel" + self._calc_port_channel_id(ethernet_interface) if self.enable_port_channel \
             else ethernet_interface
-        self.client.detach_port_from_vlan(port_id, vlan, access_mode)
+        self.client.detach_port_from_vlan(port_id, str(vlan), access_mode)
 
-    def delete_port_channel_vlan(self, ethernet_interface, vlan):
+    def delete_port_channel_vlan(self, switch_ip, ethernet_interface, vlan):
+        if not self._match_switch(switch_ip):
+            return
+
         if self.enable_port_channel:
             port_channel_id = self._calc_port_channel_id(ethernet_interface)
             self.client.delete_interface("port-channel" + port_channel_id)
-        self.client.delete_interface("vlan" + vlan)
+        self.client.delete_interface("vlan" + str(vlan))
 
 
 class SpineManager(OS10FEFabricManager):

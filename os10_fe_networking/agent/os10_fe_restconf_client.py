@@ -77,6 +77,7 @@ class OS10FERestConfClient:
             return None
 
     def _patch_and_post(self, url, parameters, body):
+        print(body)
         resp = self._patch(url, parameters, body)
         if resp.status_code == status_codes.codes['not_found']:
             error_msg = self._get_error_message(resp.json())
