@@ -25,6 +25,7 @@ class OS10FEFabricManager:
                                            conf.FRONTEND_SWITCH_FABRIC.username,
                                            self._decode_password(conf.FRONTEND_SWITCH_FABRIC.password))
         self.port_channel_ethernet_mapping = conf.FRONTEND_SWITCH_FABRIC.port_channel_ethernet_mapping
+        self.link_port_channel_mapping = conf.FRONTEND_SWITCH_FABRIC.link_port_channel_mapping
 
     @staticmethod
     def _decode_password(password):
@@ -129,7 +130,7 @@ class OS10FEFabricManager:
         pass
 
     @staticmethod
-    def _parse_preconfig_link(port_channel_ethernet_mapping):
+    def _parse_port_channel_ethernet_mapping(port_channel_ethernet_mapping):
         config = {}
         for _, port_channel in port_channel_ethernet_mapping.items():
             config[port_channel] = []
@@ -139,10 +140,35 @@ class OS10FEFabricManager:
 
         return config
 
-    def _ensure_preconfig_link(self, all_interfaces, port_channel_ethernet_mapping, vlan, vlan_if):
-        link_config = self._parse_preconfig_link(port_channel_ethernet_mapping)
+    @staticmethod
+    def _parse_link_port_channel_mapping(link_port_channel_mapping):
+        config = {}
+        for _, port_channel in link_port_channel_mapping.items():
+            config[port_channel] = []
 
-        for port_channel_name, eif_list in link_config.items():
+        for switch_ip, port_channel in link_port_channel_mapping.items():
+            config[port_channel].append(switch_ip)
+
+        return config
+
+    def _should_attach(self, switch_ip, link_port_channel_config, port_channel):
+        """
+        Spine: switch_ip should be in the link that the port channel presents
+        Leaf:  switch_ip equals to switch_ip, always true
+
+        :param switch_ip:
+        :param link_port_channel_config:
+        :param port_channel:
+        :return:
+        """
+        return switch_ip in link_port_channel_config[port_channel] or self._match_switch(switch_ip)
+
+    def _ensure_preconfig_link(self, switch_ip, all_interfaces, port_channel_ethernet_mapping,
+                               link_port_channel_mapping, vlan, vlan_if):
+        port_channel_ethernet_config = self._parse_port_channel_ethernet_mapping(port_channel_ethernet_mapping)
+        link_port_channel_config = self._parse_link_port_channel_mapping(link_port_channel_mapping)
+
+        for port_channel_name, eif_list in port_channel_ethernet_config.items():
             # ensure port channel exists
             port_channel_id = str(PortChannelInterface.extract_numeric_id(port_channel_name))
 
@@ -157,6 +183,7 @@ class OS10FEFabricManager:
                                                                         mode="trunk",
                                                                         mtu=9216,
                                                                         vlt_port_channel_id=port_channel_id))
+
                 # attach ethernet interfaces to port channel
                 for eif in eif_list:
                     eif_id = self._check_ethernet_interface_id(eif)
@@ -186,14 +213,15 @@ class OS10FEFabricManager:
                                                                                channel_group=port_channel_id,
                                                                                disable_switch_port=True))
 
-            # attach port channel to vlan in trunk mode
-            if not vlan_if or \
-                    not vlan_if.get("dell-interface:tagged-ports") or \
-                    port_channel_name not in vlan_if["dell-interface:tagged-ports"]:
-                self.client.configure_vlan(
-                    VLanInterface(vlan_id=str(vlan),
-                                  port=port_channel_name,
-                                  port_mode=VLanInterface.PortMode.TRUNK))
+            if self._should_attach(switch_ip, link_port_channel_config, port_channel_name):
+                # attach port channel to vlan in trunk mode
+                if not vlan_if or \
+                        not vlan_if.get("dell-interface:tagged-ports") or \
+                        port_channel_name not in vlan_if["dell-interface:tagged-ports"]:
+                    self.client.configure_vlan(
+                        VLanInterface(vlan_id=str(vlan),
+                                      port=port_channel_name,
+                                      port_mode=VLanInterface.PortMode.TRUNK))
 
     def _ensure_vlan(self, cluster, all_interfaces, vlan):
         vlan_if = self._get_interface_from_cache("vlan%s" % vlan, all_interfaces, Interface.Type.VLan)
@@ -223,7 +251,7 @@ class OS10FEFabricManager:
 
 class SpineManager(OS10FEFabricManager):
 
-    def _ensure_configuration_for_spine(self, ethernet_interface, vlan, cluster, preemption, access_mode):
+    def _ensure_configuration_for_spine(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
         # get all interfaces by type
         all_interfaces = self._get_all_interfaces_by_type()
 
@@ -231,12 +259,13 @@ class SpineManager(OS10FEFabricManager):
         vlan_if = self._ensure_vlan(cluster, all_interfaces, vlan)
 
         # ensure the configuration on the link to spine switch
-        self._ensure_preconfig_link(all_interfaces, self.port_channel_ethernet_mapping, vlan, vlan_if)
+        self._ensure_preconfig_link(switch_ip, all_interfaces, self.port_channel_ethernet_mapping,
+                                    self.link_port_channel_mapping, vlan, vlan_if)
 
     def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
-        self._ensure_configuration_for_spine(ethernet_interface, vlan, cluster, preemption, access_mode)
+        self._ensure_configuration_for_spine(switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode)
 
-    def detach_port_from_vlan(self, ethernet_interface, vlan, access_mode):
+    def detach_port_from_vlan(self, switch_ip, ethernet_interface, vlan, access_mode):
         pass
 
 
@@ -246,9 +275,9 @@ class LeafManager(OS10FEFabricManager):
         if not self._match_switch(switch_ip):
             return
 
-        self._ensure_configuration_for_leaf(ethernet_interface, vlan, cluster, preemption, access_mode)
+        self._ensure_configuration_for_leaf(switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode)
 
-    def _ensure_configuration_for_leaf(self, ethernet_interface, vlan, cluster, preemption, access_mode):
+    def _ensure_configuration_for_leaf(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
         # get all interfaces by type
         all_interfaces = self._get_all_interfaces_by_type()
 
@@ -263,7 +292,8 @@ class LeafManager(OS10FEFabricManager):
         self._ensure_ethernet(cluster, ethernet_interface, port, access_mode)
 
         # ensure the configuration on the link to spine switch
-        self._ensure_preconfig_link(all_interfaces, self.port_channel_ethernet_mapping, vlan, vlan_if)
+        self._ensure_preconfig_link(switch_ip, all_interfaces, self.port_channel_ethernet_mapping,
+                                    self.link_port_channel_mapping, vlan, vlan_if)
 
     def _ensure_ethernet(self, cluster, eif_id, port_id, access_mode):
         eif_id = self._check_ethernet_interface_id(eif_id)
@@ -323,4 +353,3 @@ class LeafManager(OS10FEFabricManager):
                 self.client.configure_vlan(
                     VLanInterface(vlan_id=vlan, port=port_channel_if["name"]))
         return port_channel_id
-

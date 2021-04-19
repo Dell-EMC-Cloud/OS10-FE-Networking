@@ -6,8 +6,9 @@ import requests
 import requests_mock
 from oslo_config import cfg
 
-from os10_fe_networking.agent.os10_fe_fabric_manager import LeafManager
+from os10_fe_networking.agent.os10_fe_fabric_manager import LeafManager, OS10FEFabricManager
 from os10_fe_networking.agent.rest_conf.interface import PortChannelInterface, Interface, VLanInterface
+
 CONF = cfg.CONF
 CONF.import_group("FRONTEND_SWITCH_FABRIC", "os10_fe_networking.agent.config")
 
@@ -39,7 +40,7 @@ class TestOS10FEFabricManager(TestCase):
 
     def test_leaf_ensure_configuration(self):
         CONF(["--config-file", "./leaf1.ini"])
-        self.ff_manager_leaf1 = LeafManager(CONF)
+        self.ff_manager_leaf1 = OS10FEFabricManager.create(CONF)
 
         all_interfaces_leaf1 = read_file_data("all_interfaces_leaf1.json", "restconf/")
 
@@ -49,18 +50,20 @@ class TestOS10FEFabricManager(TestCase):
             m.patch(self.ff_manager_leaf1.client.base_url + Interface.path,
                     status_code=204)
 
-            self.ff_manager_leaf1.ensure_configuration("100.127.0.125", "ethernet1/1/1:1", "2222", "Customer1", False, "access")
+            self.ff_manager_leaf1.ensure_configuration("100.127.0.125", "ethernet1/1/1:1", "2222",
+                                                       "FunctionalTestCustomer1", False, "access")
 
     def test_spine_ensure_configuration(self):
         CONF(["--config-file", "./spine1.ini"])
-        self.ff_manager_leaf1 = LeafManager(CONF)
+        self.ff_manager_spine1 = OS10FEFabricManager.create(CONF)
 
-        all_interfaces_leaf1 = read_file_data("all_interfaces_spine1.json", "restconf/")
+        all_interfaces_spine1 = read_file_data("all_interfaces_spine1.json", "restconf/")
 
         with requests_mock.Mocker() as m:
-            m.get(self.ff_manager_leaf1.client.base_url + Interface.path_all,
-                  json=all_interfaces_leaf1, status_code=200)
-            m.patch(self.ff_manager_leaf1.client.base_url + Interface.path,
+            m.get(self.ff_manager_spine1.client.base_url + Interface.path_all,
+                  json=all_interfaces_spine1, status_code=200)
+            m.patch(self.ff_manager_spine1.client.base_url + Interface.path,
                     status_code=204)
 
-            self.ff_manager_leaf1.ensure_configuration("100.127.0.121", "ethernet1/1/1:1", "2222", "Customer1", False, "access")
+            self.ff_manager_spine1.ensure_configuration("100.127.0.127", "ethernet1/1/1:1", "2222",
+                                                        "FunctionalTestCustomer1", False, "access")
