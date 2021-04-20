@@ -51,7 +51,7 @@ class TestOS10FEFabricManager(TestCase):
                     status_code=204)
 
             self.ff_manager_leaf1.ensure_configuration("100.127.0.125", "ethernet1/1/1:1", "2222",
-                                                       "FunctionalTestCustomer1", False, "access")
+                                                       "FunctionalTestCustomer1", False, "access", True)
 
     def test_spine_ensure_configuration(self):
         CONF(["--config-file", "./spine1.ini"])

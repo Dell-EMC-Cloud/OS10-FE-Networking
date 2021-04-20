@@ -6,6 +6,24 @@ from os10_fe_networking.agent.rest_conf.interface import Interface, VLanInterfac
     EthernetInterface
 
 
+class RangeAllocator:
+
+    def __init__(self, begin=125, end=128):
+        self.begin = int(begin)
+        self.end = int(end)
+
+    def alloc(self, shift):
+        if isinstance(shift, str):
+            shift = int(shift)
+
+        ret = self.begin + shift
+        if ret > self.end:
+            raise RuntimeError("unable to allocate in range {begin} - {end} for shift {shift}".format(begin=self.begin,
+                                                                                                      end=self.end,
+                                                                                                      shift=shift))
+        return ret
+
+
 class OS10FEFabricManager:
     class Category(Enum):
         SPINE = "spine"
@@ -20,12 +38,14 @@ class OS10FEFabricManager:
 
     def __init__(self, conf):
         self.address = conf.FRONTEND_SWITCH_FABRIC.switch_ip
-        self.enable_port_channel = conf.FRONTEND_SWITCH_FABRIC.enable_port_channel
         self.client = OS10FERestConfClient(self.address,
                                            conf.FRONTEND_SWITCH_FABRIC.username,
                                            self._decode_password(conf.FRONTEND_SWITCH_FABRIC.password))
         self.port_channel_ethernet_mapping = conf.FRONTEND_SWITCH_FABRIC.port_channel_ethernet_mapping
         self.link_port_channel_mapping = conf.FRONTEND_SWITCH_FABRIC.link_port_channel_mapping
+
+        self.pg_alloc = RangeAllocator(conf.FRONTEND_SWITCH_FABRIC.pg_allocatable_range[0],
+                                       conf.FRONTEND_SWITCH_FABRIC.pg_allocatable_range[1])
 
     @staticmethod
     def _decode_password(password):
@@ -119,14 +139,16 @@ class OS10FEFabricManager:
         # find a hole (available) port channel id
         return self.find_hole(sorted(port_channel_set))
 
-    @staticmethod
-    def _calc_port_channel_id(ethernet_interface):
+    def _calc_port_channel_id(self, ethernet_interface):
         """
         ethernet1/2/3:4 ==> 3
         """
-        return ethernet_interface.split("/")[-1].split(":")[0]
+        slot = ethernet_interface.split("/")[-1].split(":")[0]
+        slot = int(slot) - 1
+        return str(self.pg_alloc.alloc(slot))
 
-    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
+    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode,
+                             enable_port_channel):
         pass
 
     @staticmethod
@@ -231,19 +253,19 @@ class OS10FEFabricManager:
                                                      enabled=True))
         return vlan_if
 
-    def detach_port_from_vlan(self, switch_ip, ethernet_interface, vlan, access_mode):
+    def detach_port_from_vlan(self, switch_ip, ethernet_interface, vlan, access_mode, enable_port_channel):
         if not self._match_switch(switch_ip):
             return
 
-        port_id = "port-channel" + self._calc_port_channel_id(ethernet_interface) if self.enable_port_channel \
+        port_id = "port-channel" + self._calc_port_channel_id(ethernet_interface) if enable_port_channel \
             else ethernet_interface
         self.client.detach_port_from_vlan(port_id, str(vlan), access_mode)
 
-    def delete_port_channel_vlan(self, switch_ip, ethernet_interface, vlan):
+    def delete_port_channel_vlan(self, switch_ip, ethernet_interface, vlan, enable_port_channel):
         if not self._match_switch(switch_ip):
             return
 
-        if self.enable_port_channel:
+        if enable_port_channel:
             port_channel_id = self._calc_port_channel_id(ethernet_interface)
             self.client.delete_interface("port-channel" + port_channel_id)
         self.client.delete_interface("vlan" + str(vlan))
@@ -262,22 +284,26 @@ class SpineManager(OS10FEFabricManager):
         self._ensure_preconfig_link(switch_ip, all_interfaces, self.port_channel_ethernet_mapping,
                                     self.link_port_channel_mapping, vlan, vlan_if)
 
-    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
+    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode,
+                             enable_port_channel):
         self._ensure_configuration_for_spine(switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode)
 
-    def detach_port_from_vlan(self, switch_ip, ethernet_interface, vlan, access_mode):
+    def detach_port_from_vlan(self, switch_ip, ethernet_interface, vlan, access_mode, enable_port_channel):
         pass
 
 
 class LeafManager(OS10FEFabricManager):
 
-    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
+    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode,
+                             enable_port_channel):
         if not self._match_switch(switch_ip):
             return
 
-        self._ensure_configuration_for_leaf(switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode)
+        self._ensure_configuration_for_leaf(switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode,
+                                            enable_port_channel)
 
-    def _ensure_configuration_for_leaf(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode):
+    def _ensure_configuration_for_leaf(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode,
+                                       enable_port_channel):
         # get all interfaces by type
         all_interfaces = self._get_all_interfaces_by_type()
 
@@ -285,21 +311,21 @@ class LeafManager(OS10FEFabricManager):
         vlan_if = self._ensure_vlan(cluster, all_interfaces, vlan)
 
         port = vlan
-        if self.enable_port_channel:
+        if enable_port_channel:
             port = self._ensure_port_channel(all_interfaces, cluster, vlan, vlan_if,
-                                             ethernet_interface, preemption)
+                                             ethernet_interface, access_mode, preemption)
 
-        self._ensure_ethernet(cluster, ethernet_interface, port, access_mode)
+        self._ensure_ethernet(cluster, ethernet_interface, port, access_mode, enable_port_channel)
 
         # ensure the configuration on the link to spine switch
         self._ensure_preconfig_link(switch_ip, all_interfaces, self.port_channel_ethernet_mapping,
                                     self.link_port_channel_mapping, vlan, vlan_if)
 
-    def _ensure_ethernet(self, cluster, eif_id, port_id, access_mode):
+    def _ensure_ethernet(self, cluster, eif_id, port_id, access_mode, enable_port_channel):
         eif_id = self._check_ethernet_interface_id(eif_id)
 
         # configure ethernet interface with port-channel
-        if self.enable_port_channel:
+        if enable_port_channel:
             self.client.configure_ethernet_interface(EthernetInterface(eif_id=eif_id,
                                                                        desc=cluster,
                                                                        enabled=True,
@@ -323,33 +349,31 @@ class LeafManager(OS10FEFabricManager):
                 ethernet_interface.trunk_allowed_vlan_ids = str(port_id)
             self.client.configure_ethernet_interface(ethernet_interface)
 
-    def _ensure_port_channel(self, all_interfaces, cluster, vlan, vlan_if, ethernet_interface, preemption):
+    def _ensure_port_channel(self, all_interfaces, cluster, vlan, vlan_if, ethernet_interface, access_mode, preemption):
         # ensure port-channel
         port_channel_id = self._calc_port_channel_id(ethernet_interface)
-        port_channel_if = self._get_interface_from_cache("port-channel" + port_channel_id, all_interfaces,
-                                                         Interface.Type.PortChannel)
-        # port-channel doesn't exist, create
-        if port_channel_if is None:
+        # port_channel_if = self._get_interface_from_cache("port-channel" + port_channel_id, all_interfaces,
+        #                                                  Interface.Type.PortChannel)
 
-            # create port channel
-            lacp_preempt = None if preemption else False
-            self.client.configure_port_channel(PortChannelInterface(channel_id=str(port_channel_id),
-                                                                    desc=cluster,
-                                                                    enabled=True,
-                                                                    mode="trunk",
-                                                                    trunk_allowed_vlan_ids=vlan,
-                                                                    mtu=9216,
-                                                                    vlt_port_channel_id=port_channel_id,
-                                                                    spanning_tree=None,
-                                                                    bpdu=True,
-                                                                    edge_port=True,
-                                                                    lacp_fallback=True,
-                                                                    lacp_timeout=10,
-                                                                    lacp_preempt=lacp_preempt))
-        # port-channel exists, make sure it's related to our VLan
-        else:
-            if not vlan_if.get("dell-interface:tagged-ports") or \
-                    port_channel_if["name"] not in vlan_if["dell-interface:tagged-ports"]:
-                self.client.configure_vlan(
-                    VLanInterface(vlan_id=vlan, port=port_channel_if["name"]))
+        # configure port channel
+        lacp_preempt = None if preemption else False
+        port_channel = PortChannelInterface(channel_id=port_channel_id,
+                                            desc=cluster,
+                                            enabled=True,
+                                            mtu=9216,
+                                            vlt_port_channel_id=int(port_channel_id),
+                                            spanning_tree=None,
+                                            bpdu=True,
+                                            edge_port=True,
+                                            lacp_fallback=True,
+                                            lacp_timeout=10,
+                                            lacp_preempt=lacp_preempt)
+        if access_mode == "access":
+            port_channel.access_vlan_id = str(vlan)
+        elif access_mode == "trunk":
+            port_channel.mode = "trunk"
+            port_channel.trunk_allowed_vlan_ids = str(vlan)
+
+        self.client.configure_port_channel(port_channel)
+
         return port_channel_id
