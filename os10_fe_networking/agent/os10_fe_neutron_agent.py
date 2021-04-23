@@ -120,11 +120,11 @@ class OS10FENeutronAgent(service.ServiceBase):
 
     def stop(self):
         LOG.info('Stopping agent OS10-FE-Networking.')
-        self.heartbeat.stop()
+        # self.heartbeat.stop()
 
     def reset(self):
         LOG.info('Resetting agent OS10-FE-Networking.')
-        self.heartbeat.stop()
+        # self.heartbeat.stop()
 
     def wait(self):
         pass
@@ -179,7 +179,7 @@ class OS10FENeutronAgent(service.ServiceBase):
                 # This means the server does not support report_state
                 LOG.exception("Neutron server does not support state report. "
                               "State report for this agent will be disabled.")
-                self.heartbeat.stop()
+                # self.heartbeat.stop()
                 # Don't continue reporting the remaining agents in this case.
                 return
             except Exception:
