@@ -31,8 +31,8 @@ manager.ensure_configuration("100.127.0.125", "ethernet1/1/3", "1500", "Customer
 manager.detach_port_from_vlan("ethernet1/1/3", "1499", "access", False)
 manager.detach_port_from_vlan("ethernet1/1/3", "1500", "trunk", False)
 
-manager.delete_port_channel_vlan("ethernet1/1/3", "1499", False)
-manager.delete_port_channel_vlan("ethernet1/1/3", "1500", False)
+manager.delete_vlan("ethernet1/1/3", "1499", False)
+manager.delete_vlan("ethernet1/1/3", "1500", False)
 
 
 

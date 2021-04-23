@@ -1,4 +1,5 @@
 import json
+import os
 import socket
 import sys
 import time
@@ -35,6 +36,9 @@ CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
 CONF.import_group('AGENT', 'neutron.plugins.ml2.drivers.agent.config')
 CONF.import_group("FRONTEND_SWITCH_FABRIC", "os10_fe_networking.agent.config")
+
+DEVICES_DIR = "/sys/class/net"
+PREFIX_TAP = "tap"
 
 
 def list_opts():
@@ -214,7 +218,7 @@ class OS10FENeutronAgent(service.ServiceBase):
 
         return port_groups
 
-    def _get_devices_details_list(self, devices):
+    def _get_baremetal_devices_details_list(self, devices):
         devices_details_list = self.plugin_rpc.get_devices_details_list(
             self.context, devices, self.agent_id, host=cfg.CONF.host)
 
@@ -230,21 +234,75 @@ class OS10FENeutronAgent(service.ServiceBase):
             ret_list.append(device_detail)
         return ret_list
 
-    def refresh_devices_details_list(self):
+    def get_baremetal_devices_details_list(self):
         ironic_ports = self._fetch_and_check_baremetal_ports()
         devices = [port.address for port in ironic_ports]
 
         ironic_port_groups = self._fetch_and_check_baremetal_port_groups()
         devices.extend([port_group.address for port_group in ironic_port_groups])
 
-        self.cached_devices_details_list = self._get_devices_details_list(devices)
+        return self._get_baremetal_devices_details_list(devices)
 
-    def get_info(self, local_link_information):
+    def _get_peer_tap(self, tap):
+        identity = tap[len(PREFIX_TAP):]
+        candidates = os.listdir(DEVICES_DIR)
+
+        peer = None
+        for candidate in candidates:
+            if identity in candidate:
+                peer = candidate
+                break
+
+        return peer
+
+    def _get_provisioning_devices_details_list(self, devices):
+        devices_details_list = self.plugin_rpc.get_devices_details_list(
+            self.context, devices, self.agent_id, host=cfg.CONF.host)
+
+        ret_list = []
+        for device_detail in devices_details_list:
+            if "profile" not in device_detail:
+                continue
+
+            if not device_detail["profile"].get("provisioning-fsf"):
+                continue
+
+            # device_detail["peer"] = self._get_peer_tap(device_detail["device"])
+
+            ret_list.append(device_detail)
+        return ret_list
+
+    def get_provisioning_devices_details_list(self):
+        devices = []
+        for device in os.listdir(DEVICES_DIR):
+            if device.startswith(PREFIX_TAP):
+                devices.append(device)
+
+        ret_list = self._get_provisioning_devices_details_list(devices)
+
+        return ret_list
+
+    def refresh_devices_details_list(self):
+        baremetal_devices_details_list = self.get_baremetal_devices_details_list()
+        provisioning_devices_details_list = self.get_provisioning_devices_details_list()
+
+        self.cached_devices_details_list = baremetal_devices_details_list
+        self.cached_devices_details_list.extend(provisioning_devices_details_list)
+
+    def get_local_link_info(self, local_link_information):
         switch_port = local_link_information['port_id']
         switch_ip = local_link_information['switch_info']['switch_ip']
         cluster = local_link_information['switch_info']['cluster']
         preemption = local_link_information['switch_info']['preemption']
         access_mode = local_link_information['switch_info']['access_mode']
+        return cluster, switch_ip, switch_port, preemption, access_mode
+
+    def get_provisioning_info(self, device_detail):
+        cluster = None
+        switch_ip = device_detail["host"]
+        switch_port = None
+        preemption = None
+        access_mode = None
         return cluster, switch_ip, switch_port, preemption, access_mode
 
     def daemon_loop(self):
@@ -263,25 +321,41 @@ class OS10FENeutronAgent(service.ServiceBase):
                 for device_detail in self.cached_devices_details_list:
                     if port_id == device_detail["port_id"]:
                         segment = device_detail['segmentation_id']
-                        enable_port_channel = len(device_detail['profile']['local_link_information']) > 1
-                        for local_link_information in device_detail['profile']['local_link_information']:
-                            cluster, switch_ip, switch_port, preemption, access_mode = self.get_info(
-                                local_link_information)
 
+                        if device_detail["profile"].get("provisioning-fsf"):
+                            enable_port_channel = None
+                            cluster, switch_ip, switch_port, preemption, access_mode = self.get_provisioning_info(
+                                device_detail)
                             self.fabric_manager.detach_port_from_vlan(switch_ip, switch_port, segment,
                                                                       access_mode, enable_port_channel)
+                        elif device_detail["profile"].get("local_link_information"):
+                            enable_port_channel = len(device_detail['profile']['local_link_information']) > 1
+                            for local_link_information in device_detail['profile']['local_link_information']:
+                                cluster, switch_ip, switch_port, preemption, access_mode = self.get_local_link_info(
+                                    local_link_information)
+
+                                self.fabric_manager.detach_port_from_vlan(switch_ip, switch_port, segment,
+                                                                          access_mode, enable_port_channel)
 
             for network_id in deleted_networks:
                 for device_detail in self.cached_devices_details_list:
                     if network_id == device_detail["network_id"]:
                         segment = device_detail['segmentation_id']
-                        enable_port_channel = len(device_detail['profile']['local_link_information']) > 1
-                        for local_link_information in device_detail['profile']['local_link_information']:
-                            cluster, switch_ip, switch_port, preemption, access_mode = self.get_info(
-                                local_link_information)
 
-                            self.fabric_manager.delete_port_channel_vlan(switch_ip, switch_port,
-                                                                         segment, enable_port_channel)
+                        if device_detail["profile"].get("provisioning-fsf"):
+                            enable_port_channel = None
+                            cluster, switch_ip, switch_port, preemption, access_mode = self.get_provisioning_info(
+                                device_detail)
+                            self.fabric_manager.delete_vlan(switch_ip, switch_port,
+                                                            segment, enable_port_channel)
+                        elif device_detail["profile"].get("local_link_information"):
+                            enable_port_channel = len(device_detail['profile']['local_link_information']) > 1
+                            for local_link_information in device_detail['profile']['local_link_information']:
+                                cluster, switch_ip, switch_port, preemption, access_mode = self.get_local_link_info(
+                                    local_link_information)
+
+                                self.fabric_manager.delete_vlan(switch_ip, switch_port,
+                                                                segment, enable_port_channel)
 
             if start_up or updated_ports:
                 self.refresh_devices_details_list()
@@ -290,9 +364,10 @@ class OS10FENeutronAgent(service.ServiceBase):
                         continue
 
                     segment = device_detail['segmentation_id']
-                    enable_port_channel = len(device_detail['profile']['local_link_information']) > 1
-                    for local_link_information in device_detail['profile']['local_link_information']:
-                        cluster, switch_ip, switch_port, preemption, access_mode = self.get_info(local_link_information)
+                    if device_detail["profile"].get("provisioning-fsf"):
+                        enable_port_channel = None
+                        cluster, switch_ip, switch_port, preemption, access_mode = self.get_provisioning_info(
+                            device_detail)
 
                         # ensure above configuration
                         self.fabric_manager.ensure_configuration(switch_ip=switch_ip,
@@ -302,6 +377,21 @@ class OS10FENeutronAgent(service.ServiceBase):
                                                                  preemption=preemption,
                                                                  access_mode=access_mode,
                                                                  enable_port_channel=enable_port_channel)
+                    elif device_detail["profile"].get("local_link_information"):
+                        enable_port_channel = len(device_detail['profile']['local_link_information']) > 1
+                        for local_link_information in device_detail['profile']['local_link_information']:
+                            cluster, switch_ip, switch_port, preemption, access_mode = self.get_local_link_info(
+                                local_link_information)
+
+                            # ensure above configuration
+                            self.fabric_manager.ensure_configuration(switch_ip=switch_ip,
+                                                                     ethernet_interface=switch_port,
+                                                                     vlan=segment,
+                                                                     cluster=cluster,
+                                                                     preemption=preemption,
+                                                                     access_mode=access_mode,
+                                                                     enable_port_channel=enable_port_channel)
+
                 start_up = False
 
             # sleep till end of polling interval
@@ -322,10 +412,10 @@ class OS10FERpcCallbacks(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
 
     def network_delete(self, context, **kwargs):
         LOG.info("network_delete received")
+        self.agent.deleted_networks.add(kwargs["network_id"])
 
     def network_update(self, context, **kwargs):
         LOG.info("network_update received")
-        self.agent.deleted_networks.add(kwargs["network_id"])
 
     def port_update(self, context, **kwargs):
         port = kwargs["port"]

@@ -1,6 +1,7 @@
 import base64
 from enum import Enum
 
+from os10_fe_networking.agent.os10_fe_fabric_manager_callback import WriteMemoryCallback
 from os10_fe_networking.agent.os10_fe_restconf_client import OS10FERestConfClient
 from os10_fe_networking.agent.rest_conf.interface import Interface, VLanInterface, PortChannelInterface, \
     EthernetInterface
@@ -46,6 +47,8 @@ class OS10FEFabricManager:
 
         self.pg_alloc = RangeAllocator(conf.FRONTEND_SWITCH_FABRIC.pg_allocatable_range[0],
                                        conf.FRONTEND_SWITCH_FABRIC.pg_allocatable_range[1])
+
+        self.callbacks = [WriteMemoryCallback(self.client)]
 
     @staticmethod
     def _decode_password(password):
@@ -129,6 +132,10 @@ class OS10FEFabricManager:
             Interface.Type.Ethernet: ethernet_dict
         }
 
+    def _run_callback(self, method_name):
+        for callback in self.callbacks:
+            getattr(callback, method_name)()
+
     def _calc_available_port_channel(self, all_interfaces):
         port_channel_set = set()
         for _, interface_dict in all_interfaces.items():
@@ -141,15 +148,11 @@ class OS10FEFabricManager:
 
     def _calc_port_channel_id(self, ethernet_interface):
         """
-        ethernet1/2/3:4 ==> 3
+        ethernet1/2/3:4 ==> 4
         """
-        slot = ethernet_interface.split("/")[-1].split(":")[0]
+        slot = ethernet_interface.split("/")[-1].split(":")[1]
         slot = int(slot) - 1
         return str(self.pg_alloc.alloc(slot))
-
-    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode,
-                             enable_port_channel):
-        pass
 
     @staticmethod
     def _parse_port_channel_ethernet_mapping(port_channel_ethernet_mapping):
@@ -253,22 +256,32 @@ class OS10FEFabricManager:
                                                      enabled=True))
         return vlan_if
 
+    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode,
+                             enable_port_channel):
+        self._run_callback("pre_ensure_configuration")
+        if self._ensure_configuration(switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode,
+                                      enable_port_channel):
+            self._run_callback("post_ensure_configuration")
+
+    def _ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode,
+                              enable_port_channel):
+        pass
+
     def detach_port_from_vlan(self, switch_ip, ethernet_interface, vlan, access_mode, enable_port_channel):
-        if not self._match_switch(switch_ip):
-            return
+        self._run_callback("pre_detach_port_from_vlan")
+        if self._detach_port_from_vlan(switch_ip, ethernet_interface, vlan, access_mode, enable_port_channel):
+            self._run_callback("post_detach_port_from_vlan")
 
-        port_id = "port-channel" + self._calc_port_channel_id(ethernet_interface) if enable_port_channel \
-            else ethernet_interface
-        self.client.detach_port_from_vlan(port_id, str(vlan), access_mode)
+    def _detach_port_from_vlan(self, switch_ip, ethernet_interface, vlan, access_mode, enable_port_channel):
+        pass
 
-    def delete_port_channel_vlan(self, switch_ip, ethernet_interface, vlan, enable_port_channel):
-        if not self._match_switch(switch_ip):
-            return
+    def delete_vlan(self, switch_ip, ethernet_interface, vlan, enable_port_channel):
+        self._run_callback("pre_delete_vlan")
+        if self._delete_vlan(switch_ip, ethernet_interface, vlan, enable_port_channel):
+            self._run_callback("post_delete_vlan")
 
-        if enable_port_channel:
-            port_channel_id = self._calc_port_channel_id(ethernet_interface)
-            self.client.delete_interface("port-channel" + port_channel_id)
-        self.client.delete_interface("vlan" + str(vlan))
+    def _delete_vlan(self, switch_ip, ethernet_interface, vlan, enable_port_channel):
+        pass
 
 
 class SpineManager(OS10FEFabricManager):
@@ -284,23 +297,30 @@ class SpineManager(OS10FEFabricManager):
         self._ensure_preconfig_link(switch_ip, all_interfaces, self.port_channel_ethernet_mapping,
                                     self.link_port_channel_mapping, vlan, vlan_if)
 
-    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode,
-                             enable_port_channel):
+    def _ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode,
+                              enable_port_channel):
         self._ensure_configuration_for_spine(switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode)
+        return True
 
-    def detach_port_from_vlan(self, switch_ip, ethernet_interface, vlan, access_mode, enable_port_channel):
-        pass
+    def _detach_port_from_vlan(self, switch_ip, ethernet_interface, vlan, access_mode, enable_port_channel):
+        return False
+
+    def _delete_vlan(self, switch_ip, ethernet_interface, vlan, enable_port_channel):
+        self.client.delete_interface("vlan" + str(vlan))
+        return True
 
 
 class LeafManager(OS10FEFabricManager):
 
-    def ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode,
-                             enable_port_channel):
+    def _ensure_configuration(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode,
+                              enable_port_channel):
         if not self._match_switch(switch_ip):
-            return
+            return False
 
         self._ensure_configuration_for_leaf(switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode,
                                             enable_port_channel)
+
+        return True
 
     def _ensure_configuration_for_leaf(self, switch_ip, ethernet_interface, vlan, cluster, preemption, access_mode,
                                        enable_port_channel):
@@ -377,3 +397,20 @@ class LeafManager(OS10FEFabricManager):
         self.client.configure_port_channel(port_channel)
 
         return port_channel_id
+
+    def _detach_port_from_vlan(self, switch_ip, ethernet_interface, vlan, access_mode, enable_port_channel):
+        if not self._match_switch(switch_ip):
+            return False
+
+        if enable_port_channel:
+            port_channel_id = self._calc_port_channel_id(ethernet_interface)
+            self.client.delete_interface("port-channel" + port_channel_id)
+        else:
+            self.client.detach_port_from_vlan(ethernet_interface, str(vlan), access_mode)
+
+        return True
+
+    def _delete_vlan(self, switch_ip, ethernet_interface, vlan, enable_port_channel):
+        self.client.delete_interface("vlan" + str(vlan))
+
+        return True

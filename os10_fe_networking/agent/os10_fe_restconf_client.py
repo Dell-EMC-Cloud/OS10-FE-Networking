@@ -6,6 +6,7 @@ from requests.auth import HTTPBasicAuth
 from oslo_log import log as logging
 
 from os10_fe_networking.agent.rest_conf.border_gateway_protocol import BorderGatewayProtocol
+from os10_fe_networking.agent.rest_conf.common import Copy
 from os10_fe_networking.agent.rest_conf.port_group import PortGroup
 from os10_fe_networking.agent.rest_conf.virtual_route_forwarding import IPVirtualRouteForwarding
 from os10_fe_networking.agent.rest_conf.interface import VLanInterface, PortChannelInterface, EthernetInterface, \
@@ -31,10 +32,11 @@ class OS10FERestConfClient:
                                 params=parameters,
                                 verify=self.verify,
                                 headers=self.headers)
-        print(resp.json())
+        # print(resp.json())
         return resp
 
     def _post(self, url, parameters, body):
+        print(body)
         resp = self.session.post(url,
                                  params=parameters,
                                  json=body,
@@ -53,6 +55,7 @@ class OS10FERestConfClient:
         return resp
 
     def _delete(self, url, parameters):
+        print("DELETE {url}".format(url=url))
         resp = self.session.delete(url,
                                    params=parameters,
                                    verify=self.verify,
@@ -61,6 +64,7 @@ class OS10FERestConfClient:
         return resp
 
     def _patch(self, url, parameters, body):
+        print(body)
         resp = self.session.patch(url,
                                   params=parameters,
                                   json=body,
@@ -77,7 +81,6 @@ class OS10FERestConfClient:
             return None
 
     def _patch_and_post(self, url, parameters, body):
-        print(body)
         resp = self._patch(url, parameters, body)
         if resp.status_code == status_codes.codes['not_found']:
             error_msg = self._get_error_message(resp.json())
@@ -228,5 +231,11 @@ class OS10FERestConfClient:
     def configure_bgp(self, bgp):
         url = self.base_url + BorderGatewayProtocol.path
         resp = self._patch_and_post(url, None, bgp.content())
+
+        return resp
+
+    def write_memory(self):
+        url = self.base_url + Copy.path
+        resp = self._post(url, None, Copy(source=Copy.Endpoint.RUNNING, target=Copy.Endpoint.STARTUP).content())
 
         return resp

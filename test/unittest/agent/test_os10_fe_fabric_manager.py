@@ -7,6 +7,7 @@ import requests_mock
 from oslo_config import cfg
 
 from os10_fe_networking.agent.os10_fe_fabric_manager import LeafManager, OS10FEFabricManager
+from os10_fe_networking.agent.rest_conf.common import Copy
 from os10_fe_networking.agent.rest_conf.interface import PortChannelInterface, Interface, VLanInterface
 
 CONF = cfg.CONF
@@ -49,6 +50,8 @@ class TestOS10FEFabricManager(TestCase):
                   json=all_interfaces_leaf1, status_code=200)
             m.patch(self.ff_manager_leaf1.client.base_url + Interface.path,
                     status_code=204)
+            m.post(self.ff_manager_leaf1.client.base_url + Copy.path,
+                   status_code=204)
 
             self.ff_manager_leaf1.ensure_configuration("100.127.0.125", "ethernet1/1/1:1", "2222",
                                                        "FunctionalTestCustomer1", False, "access", True)
@@ -64,6 +67,24 @@ class TestOS10FEFabricManager(TestCase):
                   json=all_interfaces_spine1, status_code=200)
             m.patch(self.ff_manager_spine1.client.base_url + Interface.path,
                     status_code=204)
+            m.post(self.ff_manager_spine1.client.base_url + Copy.path,
+                   status_code=204)
 
             self.ff_manager_spine1.ensure_configuration("100.127.0.127", "ethernet1/1/1:1", "2222",
-                                                        "FunctionalTestCustomer1", False, "access")
+                                                        "FunctionalTestCustomer1", False, "access", True)
+
+    def test_spine_ensure_normal_port_configuration(self):
+        CONF(["--config-file", "./spine1.ini"])
+        self.ff_manager_spine1 = OS10FEFabricManager.create(CONF)
+
+        all_interfaces_spine1 = read_file_data("all_interfaces_spine1.json", "restconf/")
+
+        with requests_mock.Mocker() as m:
+            m.get(self.ff_manager_spine1.client.base_url + Interface.path_all,
+                  json=all_interfaces_spine1, status_code=200)
+            m.patch(self.ff_manager_spine1.client.base_url + Interface.path,
+                    status_code=204)
+            m.post(self.ff_manager_spine1.client.base_url + Copy.path,
+                   status_code=204)
+
+            self.ff_manager_spine1.ensure_configuration("pic-1", None, "2222", "", None, None, None)
