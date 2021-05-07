@@ -300,7 +300,6 @@ class OS10FENeutronAgent(service.ServiceBase):
         devices_details_list = self.plugin_rpc.get_frontend_devices_details_list(
             self.context, self.agent_id, host=cfg.CONF.host)
 
-        import pdb; pdb.set_trace()
         for device_detail in devices_details_list:
             if "profile" not in device_detail:
                 continue
