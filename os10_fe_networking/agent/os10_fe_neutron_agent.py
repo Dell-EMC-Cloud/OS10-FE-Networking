@@ -46,6 +46,13 @@ def list_opts():
             ("FRONTEND_SWITCH_FABRIC", switch_opts)]
 
 
+class PluginApi(agent_rpc.PluginApi):
+    def get_frontend_devices_details_list(self, context, agent_id, host=None):
+        cctxt = self.client.prepare(version='1.3')
+        return cctxt.call(context, 'get_frontend_devices_details_list',
+                          agent_id=agent_id, host=host)
+
+
 class OS10FENeutronAgent(service.ServiceBase):
 
     def __init__(self):
@@ -78,7 +85,7 @@ class OS10FENeutronAgent(service.ServiceBase):
         self.daemon_loop()
 
     def setup_rpc(self):
-        self.plugin_rpc = agent_rpc.PluginApi(topics.PLUGIN)
+        self.plugin_rpc = PluginApi(topics.PLUGIN)
         self.sg_plugin_rpc = sg_rpc.SecurityGroupServerRpcApi(topics.PLUGIN)
         self.sg_agent = agent_sg_rpc.SecurityGroupAgentRpc(
             self.context, self.sg_plugin_rpc, defer_refresh_firewall=True)
@@ -289,7 +296,24 @@ class OS10FENeutronAgent(service.ServiceBase):
         self.cached_devices_details_list = baremetal_devices_details_list
         self.cached_devices_details_list.extend(provisioning_devices_details_list)
 
-    def get_local_link_info(self, local_link_information):
+    def new_refresh_devices_details_list(self):
+        devices_details_list = self.plugin_rpc.get_frontend_devices_details_list(
+            self.context, self.agent_id, host=cfg.CONF.host)
+
+        import pdb; pdb.set_trace()
+        for device_detail in devices_details_list:
+            if "profile" not in device_detail:
+                continue
+
+            if device_detail["profile"].get("local_link_information"):
+                for local_link_information in device_detail['profile']['local_link_information']:
+                    switch_info = local_link_information['switch_info']
+                    local_link_information['switch_info'] = json.loads(switch_info.replace("'", "\""))
+
+        self.cached_devices_details_list = devices_details_list
+
+    @staticmethod
+    def get_local_link_info(local_link_information):
         switch_port = local_link_information['port_id']
         switch_ip = local_link_information['switch_info']['switch_ip']
         cluster = local_link_information['switch_info']['cluster']
@@ -297,7 +321,8 @@ class OS10FENeutronAgent(service.ServiceBase):
         access_mode = local_link_information['switch_info']['access_mode']
         return cluster, switch_ip, switch_port, preemption, access_mode
 
-    def get_provisioning_info(self, device_detail):
+    @staticmethod
+    def get_provisioning_info(device_detail):
         cluster = None
         switch_ip = device_detail["host"]
         switch_port = None
@@ -358,7 +383,7 @@ class OS10FENeutronAgent(service.ServiceBase):
                                                                 segment, enable_port_channel)
 
             if start_up or updated_ports:
-                self.refresh_devices_details_list()
+                self.new_refresh_devices_details_list()
                 for device_detail in self.cached_devices_details_list:
                     if updated_ports and device_detail["port_id"] not in updated_ports:
                         continue
