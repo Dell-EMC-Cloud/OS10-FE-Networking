@@ -204,99 +204,7 @@ class OS10FENeutronAgent(service.ServiceBase):
         self.__dict__[member] = set()
         return return_set
 
-    def _fetch_and_check_baremetal_ports(self):
-        ironic_ports = self.ironic_client.ports(True)
-        ports = []
-        for port in ironic_ports:
-            if "port_id" in port.local_link_connection and \
-                    "switch_id" in port.local_link_connection and \
-                    "switch_info" in port.local_link_connection:
-                switch_info = json.loads(port.local_link_connection["switch_info"].replace("'", "\""))
-                if switch_info["fabric"] == constants.FRONTEND:
-                    ports.append(port)
-
-        return ports
-
-    def _fetch_and_check_baremetal_port_groups(self):
-        ironic_port_groups = self.ironic_client.port_groups(True)
-        port_groups = []
-        for port_group in ironic_port_groups:
-            port_groups.append(port_group)
-
-        return port_groups
-
-    def _get_baremetal_devices_details_list(self, devices):
-        devices_details_list = self.plugin_rpc.get_devices_details_list(
-            self.context, devices, self.agent_id, host=cfg.CONF.host)
-
-        ret_list = []
-        for device_detail in devices_details_list:
-            if "profile" not in device_detail:
-                continue
-
-            for local_link_information in device_detail['profile']['local_link_information']:
-                switch_info = local_link_information['switch_info']
-                local_link_information['switch_info'] = json.loads(switch_info.replace("'", "\""))
-
-            ret_list.append(device_detail)
-        return ret_list
-
-    def get_baremetal_devices_details_list(self):
-        ironic_ports = self._fetch_and_check_baremetal_ports()
-        devices = [port.address for port in ironic_ports]
-
-        ironic_port_groups = self._fetch_and_check_baremetal_port_groups()
-        devices.extend([port_group.address for port_group in ironic_port_groups])
-
-        return self._get_baremetal_devices_details_list(devices)
-
-    def _get_peer_tap(self, tap):
-        identity = tap[len(PREFIX_TAP):]
-        candidates = os.listdir(DEVICES_DIR)
-
-        peer = None
-        for candidate in candidates:
-            if identity in candidate:
-                peer = candidate
-                break
-
-        return peer
-
-    def _get_provisioning_devices_details_list(self, devices):
-        devices_details_list = self.plugin_rpc.get_devices_details_list(
-            self.context, devices, self.agent_id, host=cfg.CONF.host)
-
-        ret_list = []
-        for device_detail in devices_details_list:
-            if "profile" not in device_detail:
-                continue
-
-            if not device_detail["profile"].get("provisioning-fsf"):
-                continue
-
-            # device_detail["peer"] = self._get_peer_tap(device_detail["device"])
-
-            ret_list.append(device_detail)
-        return ret_list
-
-    def get_provisioning_devices_details_list(self):
-        devices = []
-        for device in os.listdir(DEVICES_DIR):
-            if device.startswith(PREFIX_TAP):
-                devices.append(device)
-
-        ret_list = self._get_provisioning_devices_details_list(devices)
-
-        return ret_list
-
     def refresh_devices_details_list(self):
-        baremetal_devices_details_list = self.get_baremetal_devices_details_list()
-        provisioning_devices_details_list = self.get_provisioning_devices_details_list()
-
-        self.cached_devices_details_list = baremetal_devices_details_list
-        self.cached_devices_details_list.extend(provisioning_devices_details_list)
-
-    def new_refresh_devices_details_list(self):
         devices_details_list = self.plugin_rpc.get_frontend_devices_details_list(
             self.context, self.agent_id, host=cfg.CONF.host)
 
@@ -382,7 +290,7 @@ class OS10FENeutronAgent(service.ServiceBase):
                                                                 segment, enable_port_channel)
 
             if start_up or updated_ports:
-                self.new_refresh_devices_details_list()
+                self.refresh_devices_details_list()
                 for device_detail in self.cached_devices_details_list:
                     if updated_ports and device_detail["port_id"] not in updated_ports:
                         continue

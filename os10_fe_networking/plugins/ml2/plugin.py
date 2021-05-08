@@ -57,7 +57,7 @@ class OS10Ml2Plugin(Ml2Plugin):
                     if profile.get("local_link_information"):
                         for local_link_information in profile["local_link_information"]:
                             if not local_link_information.get("switch_info") or \
-                                    not local_link_information["switch_info"].contains("frontend"):
+                                    "frontend" not in local_link_information["switch_info"]:
                                 is_frontend_port = False
                                 break
                     elif profile.get("provisioning-fsf"):
