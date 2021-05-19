@@ -384,10 +384,7 @@ class LeafManager(OS10FEFabricManager):
                                             vlt_port_channel_id=int(port_channel_id),
                                             spanning_tree=None,
                                             bpdu=True,
-                                            edge_port=True,
-                                            lacp_fallback=True,
-                                            lacp_timeout=10,
-                                            lacp_preempt=lacp_preempt)
+                                            edge_port=True)
         if access_mode == "access":
             port_channel.access_vlan_id = str(vlan)
         elif access_mode == "trunk":
