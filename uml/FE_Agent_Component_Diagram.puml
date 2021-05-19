@@ -1,0 +1,74 @@
+@startuml
+skinparam componentStyle uml2
+
+skinparam node {
+borderColor Green
+backgroundColor Yellow
+backgroundColor<<shared node>> Magenta
+}
+
+skinparam cloud {
+backgroundColor DarkKhaki
+}
+
+skinparam package {
+backgroundColor Aqua
+}
+
+node "POD Controller" {
+    [Neutron Server] -down- [FE Agent]: RPC
+    [TFTP Server] -down- bond0 : mfsbsd NBP
+    [NFS Server] -up- bond0 : whole disk image
+    [Ironic] -up- [Neutron Server] : RESTApi
+    [Ironic] -- ensX : Redfish
+    [FE Agent] -- ensX : OS10 Restconf
+
+    component [FE Agent] #Red
+    component [Neutron Server] #Silver
+    component [TFTP Server] #Silver
+    component [Ironic] #Silver
+    component [NFS Server] #Silver
+}
+
+cloud "Frontend Switch Fabric" {
+[Spine1] -up- bond0
+[Spine2] -up- bond0
+[Leaf1] -up- [Spine1]
+[Leaf2] -up- [Spine2]
+[Leaf1] -right- [Leaf2]
+[Spine1] -right- [Spine2]
+[Leaf1] -up- [Spine2]
+[Leaf2] -up- [Spine1]
+
+component [Leaf1] #Seagreen
+component [Leaf2] #Seagreen
+component [Spine1] #Seagreen
+component [Spine2] #Seagreen
+}
+
+package "PowerScale" {
+[Node1] -up- [Leaf1]
+[Node1] -up- [Leaf2]
+[Node2] -up- [Leaf1]
+[Node2] -up- [Leaf2]
+[NodeN] -up- [Leaf1]
+[NodeN] -up- [Leaf2]
+
+component [Node1] #Gray
+component [Node2] #Gray
+component [NodeN] #Gray
+}
+
+cloud "Mgmt Fabric" {
+[Mgmt Switch] -right- Node1 : Link between Mgmt Switch and nodes
+[Mgmt Switch] -right- [Leaf1] : Link between Mgmt Switch and frontend switch fabric
+[Mgmt Switch] -up- ensX
+
+component [Mgmt Switch] #Seagreen
+}
+
+
+
+
+
+@enduml
