@@ -1,9 +1,7 @@
 import json
-import os
 import socket
 import sys
 import time
-from urllib import parse as urlparse
 
 import eventlet
 
@@ -23,7 +21,6 @@ from openstack import exceptions as sdk_exc
 from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging
-from oslo_service import loopingcall
 from oslo_service import service
 from oslo_utils import uuidutils
 from neutron.api.rpc.handlers import securitygroups_rpc as sg_rpc
@@ -205,8 +202,13 @@ class OS10FENeutronAgent(service.ServiceBase):
         return return_set
 
     def refresh_devices_details_list(self):
-        devices_details_list = self.plugin_rpc.get_frontend_devices_details_list(
-            self.context, self.agent_id, host=cfg.CONF.host)
+        try:
+            devices_details_list = self.plugin_rpc.get_frontend_devices_details_list(
+                self.context, self.agent_id, host=cfg.CONF.host)
+        except Exception:
+            LOG.exception("Unable to get port details")
+            # resync is needed
+            return True
 
         for device_detail in devices_details_list:
             if "profile" not in device_detail:
@@ -218,6 +220,8 @@ class OS10FENeutronAgent(service.ServiceBase):
                     local_link_information['switch_info'] = json.loads(switch_info.replace("'", "\""))
 
         self.cached_devices_details_list = devices_details_list
+
+        return False
 
     @staticmethod
     def get_local_link_info(local_link_information):
@@ -241,13 +245,20 @@ class OS10FENeutronAgent(service.ServiceBase):
         LOG.info("%s Agent RPC Daemon Started!", self.agent_type)
 
         start_up = True
+        previous_ports = set()
 
         while True:
             start = time.time()
 
-            updated_ports = self._get_and_clear_member_set("updated_ports")
+            updated_ports = self._get_and_clear_member_set("updated_ports") | previous_ports
+            previous_ports = set()
             deleted_ports = self._get_and_clear_member_set("deleted_ports")
             deleted_networks = self._get_and_clear_member_set("deleted_networks")
+
+            if len(updated_ports) or len(deleted_ports) or len(deleted_networks):
+                LOG.info("daemon_loop: updated_ports: {updated_ports}".format(updated_ports=updated_ports))
+                LOG.info("daemon_loop: deleted_ports: {deleted_ports}".format(deleted_ports=deleted_ports))
+                LOG.info("daemon_loop: deleted_networks: {deleted_networks}".format(deleted_networks=deleted_networks))
 
             for port_id in deleted_ports:
                 for device_detail in self.cached_devices_details_list:
@@ -290,7 +301,15 @@ class OS10FENeutronAgent(service.ServiceBase):
                                                                 segment, enable_port_channel)
 
             if start_up or updated_ports:
-                self.refresh_devices_details_list()
+                start_up = False
+                resync = self.refresh_devices_details_list()
+
+                # Agent is out of sync with neutron
+                # save the updated ports and wait for next sync
+                if resync:
+                    previous_ports = previous_ports | updated_ports
+                    continue
+
                 for device_detail in self.cached_devices_details_list:
                     if updated_ports and device_detail["port_id"] not in updated_ports:
                         continue
@@ -324,8 +343,6 @@ class OS10FENeutronAgent(service.ServiceBase):
                                                                      access_mode=access_mode,
                                                                      enable_port_channel=enable_port_channel)
 
-                start_up = False
-
             # sleep till end of polling interval
             elapsed = (time.time() - start)
             if elapsed < self.polling_interval:
@@ -354,7 +371,8 @@ class OS10FERpcCallbacks(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         network_type = kwargs["network_type"]
         segmentation_id = kwargs["segmentation_id"]
         physical_network = kwargs["physical_network"]
-        LOG.info("port_update received")
+        LOG.info("port_update received: {port}".format(port=port))
+        LOG.info("segmentation_id: {segmentation_id}".format(segmentation_id=segmentation_id))
 
         self.agent.updated_ports.add(port["id"])
 

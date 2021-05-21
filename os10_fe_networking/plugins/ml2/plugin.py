@@ -45,7 +45,7 @@ class OS10Ml2Plugin(Ml2Plugin):
                             enable_eagerloads(False).
                             all())
             except sa_exc.NoResultFound:
-                LOG.info("No ports found %s")
+                LOG.info("No ports found")
 
             for port_db in ports_db:
                 port = self._make_port_dict(port_db)
@@ -117,9 +117,9 @@ class RpcCallbacks(rpc.RpcCallbacks):
         # cached networks used for reducing number of network db calls
         # for server internal usage only
         cached_networks = kwargs.get('cached_networks')
-        LOG.debug("Frontend devices details list requested by agent "
-                  "%(agent_id)s with host %(host)s",
-                  {'agent_id': agent_id, 'host': host})
+        LOG.info("Frontend devices details list requested by agent "
+                 "%(agent_id)s with host %(host)s",
+                 {'agent_id': agent_id, 'host': host})
 
         plugin = directory.get_plugin()
         port_contexts = plugin.get_frontend_bound_port_contexts(rpc_context,

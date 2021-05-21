@@ -1,5 +1,3 @@
-from urllib.parse import quote_plus
-
 import requests
 from requests import status_codes
 from requests.auth import HTTPBasicAuth
