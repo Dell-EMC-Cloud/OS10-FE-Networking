@@ -1,0 +1,5 @@
+# settings file for os10_fe_networking
+define_plugin OS10-FE-Networking
+plugin_requires OS10-FE-Networking ironic
+plugin_requires OS10-FE-Networking networking-generic-switch
+enable_service os10_fe_networking

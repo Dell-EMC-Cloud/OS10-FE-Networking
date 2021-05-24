@@ -1,0 +1,55 @@
+#!/bin/bash
+#
+# lib/OS10-FE-Networking
+# # Functions to control the configuration and operation of the **OS10 FE Networking**
+
+# Dependencies:
+# (none)
+
+# Save trace setting
+_XTRACE_OS10_FE_NETWORKING=$(set +o | grep xtrace)
+set +o xtrace
+
+# Defaults
+# --------
+
+# networking-baremetal service
+OS10_FE_NETWORKING_REPO=${OS10_FE_NETWORKING_REPO:-${GIT_BASE}/Dell-EMC-Cloud/OS10-FE-Networking.git}
+OS10_FE_NETWORKING_BRANCH=${OS10_FE_NETWORKING_BRANCH:-master}
+
+OS10_FE_NETWORKING_DIR=${OS10_FE_NETWORKING_DIR:-$DEST/OS10-FE-Networking}
+OS10_FE_NETWORKING_BRANCH_DATA_DIR=""$DATA_DIR/networking-baremetal""
+
+# Support entry points installation of console scripts
+OS10_FE_NETWORKING_BIN_DIR=$(get_python_exec_prefix)
+
+
+# Functions
+# ---------
+
+function install_os10_fe_networking {
+    setup_develop OS10_FE_NETWORKING_REPO
+}
+
+
+function configure_os10_fe_networking {
+    NEUTRON_CORE_PLUGIN='os10_ml2'
+    iniset $NEUTRON_CONF DEFAULT core_plugin $NEUTRON_CORE_PLUGIN
+}
+
+function configure_os10_fe_networking_neutron_agent {
+    configure_keystone_authtoken_middleware $NEUTRON_CONF ironic ironic
+    configure_placement_nova_compute $NEUTRON_CONF
+}
+
+function start_os10_fe_networking_neutron_agent {
+    run_process os10-neutronagt "$OS10_FE_NETWORKING_BIN_DIR/os10-fe-neutron-agent"
+}
+
+function stop_os10_fe_networking_neutron_agent {
+    stop_process os10-neutronagt
+}
+
+function cleanup_os10_fe_networking {
+    rm -rf $OS10_FE_NETWORKING_BRANCH_DATA_DIR
+}
