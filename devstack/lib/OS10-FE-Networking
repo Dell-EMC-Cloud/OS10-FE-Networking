@@ -14,11 +14,11 @@ set +o xtrace
 # --------
 
 # networking-baremetal service
-OS10_FE_NETWORKING_REPO=${$OS10_FE_NETWORKING_REPO:-${GIT_BASE}/Dell-EMC-Cloud/OS10-FE-Networking.git}
-OS10_FE_NETWORKING_BRANCH=${$OS10_FE_NETWORKING_BRANCH:-main}
+OS10_FE_NETWORKING_REPO=${OS10_FE_NETWORKING_REPO:-${GIT_BASE}/Dell-EMC-Cloud/OS10-FE-Networking.git}
+OS10_FE_NETWORKING_BRANCH=${OS10_FE_NETWORKING_BRANCH:-main}
 
-OS10_FE_NETWORKING_DIR=${$OS10_FE_NETWORKING_DIR:-$DEST/OS10-FE-Networking}
-OS10_FE_NETWORKING_BRANCH_DATA_DIR=""$DATA_DIR/networking-baremetal""
+OS10_FE_NETWORKING_DIR=${OS10_FE_NETWORKING_DIR:-$DEST/OS10-FE-Networking}
+OS10_FE_NETWORKING_BRANCH_DATA_DIR=""$DATA_DIR/OS10-FE-Networking""
 
 # Support entry points installation of console scripts
 OS10_FE_NETWORKING_BIN_DIR=$(get_python_exec_prefix)
@@ -28,7 +28,7 @@ OS10_FE_NETWORKING_BIN_DIR=$(get_python_exec_prefix)
 # ---------
 
 function install_os10_fe_networking {
-    setup_develop OS10_FE_NETWORKING_REPO
+    setup_develop $OS10_FE_NETWORKING_DIR
 }
 
 
