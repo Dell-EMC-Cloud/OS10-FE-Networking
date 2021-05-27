@@ -30,17 +30,17 @@ class OS10FERestConfClient:
                                 params=parameters,
                                 verify=self.verify,
                                 headers=self.headers)
-        # print(resp.json())
+        # LOG.debug(resp.json())
         return resp
 
     def _post(self, url, parameters, body):
-        print(body)
+        LOG.debug(body)
         resp = self.session.post(url,
                                  params=parameters,
                                  json=body,
                                  verify=self.verify,
                                  headers=self.headers)
-        print(resp)
+        LOG.debug(resp)
         return resp
 
     def _put(self, url, parameters, body):
@@ -49,26 +49,26 @@ class OS10FERestConfClient:
                                 json=body,
                                 verify=self.verify,
                                 headers=self.headers)
-        print(resp)
+        LOG.debug(resp)
         return resp
 
     def _delete(self, url, parameters):
-        print("DELETE {url}".format(url=url))
+        LOG.debug("DELETE {url}".format(url=url))
         resp = self.session.delete(url,
                                    params=parameters,
                                    verify=self.verify,
                                    headers=self.headers)
-        print(resp)
+        LOG.debug(resp)
         return resp
 
     def _patch(self, url, parameters, body):
-        print(body)
+        LOG.debug(body)
         resp = self.session.patch(url,
                                   params=parameters,
                                   json=body,
                                   verify=self.verify,
                                   headers=self.headers)
-        print(resp)
+        LOG.debug(resp)
         return resp
 
     def _get_error_message(self, resp):

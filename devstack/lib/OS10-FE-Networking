@@ -8,7 +8,6 @@
 
 # Save trace setting
 _XTRACE_OS10_FE_NETWORKING=$(set +o | grep xtrace)
-set +o xtrace
 
 # Defaults
 # --------
@@ -24,10 +23,6 @@ OS10_FE_NETWORKING_BRANCH_DATA_DIR=""$DATA_DIR/OS10-FE-Networking""
 OS10_FE_NETWORKING_BIN_DIR=$(get_python_exec_prefix)
 
 OS10_FE_CONF_DIR=${OS10_FE_CONF_DIR:-/etc/neutron/plugins/os10_fe}
-OS10_FE_CONF_FILE_LEAF1=$OS10_FE_CONF_DIR/leaf1.ini
-OS10_FE_CONF_FILE_LEAF2=$OS10_FE_CONF_DIR/leaf2.ini
-OS10_FE_CONF_FILE_SPINE1=$OS10_FE_CONF_DIR/spine1.ini
-OS10_FE_CONF_FILE_SPINE2=$OS10_FE_CONF_DIR/spine2.ini
 
 
 # Functions
@@ -38,15 +33,28 @@ function install_os10_fe_networking {
 }
 
 
+function get_os10_fe_network_config_files {
+	local file=$1
+	local matchgroup=$2
+
+    for configfile in $(get_meta_section_files $file $matchgroup); do
+        if [ -z $(eval "echo $configfile | grep $OS10_FE_CONF_DIR") ]; then
+            continue
+        fi
+		echo $(eval "echo $configfile")
+    done
+
+}
+
+
 function configure_os10_fe_networking {
 	sudo install -d -o $STACK_USER $OS10_FE_CONF_DIR
 
 	(cd $OS10_FE_NETWORKING_DIR && exec oslo-config-generator --config-file ./tools/config/os10-fe-networking-config-generator.conf)
 
-	cp $OS10_FE_NETWORKING_DIR/os10_fe.conf.sample $OS10_FE_CONF_FILE_LEAF1
-	cp $OS10_FE_NETWORKING_DIR/os10_fe.conf.sample $OS10_FE_CONF_FILE_LEAF2
-	cp $OS10_FE_NETWORKING_DIR/os10_fe.conf.sample $OS10_FE_CONF_FILE_SPINE1
-	cp $OS10_FE_NETWORKING_DIR/os10_fe.conf.sample $OS10_FE_CONF_FILE_SPINE2
+	for config_file in $(get_os10_fe_network_config_files $TOP_DIR/local.conf post-config); do
+		cp $OS10_FE_NETWORKING_DIR/os10_fe.conf.sample $config_file
+	done
 
 	NEUTRON_CORE_PLUGIN='os10_ml2'
     iniset $NEUTRON_CONF DEFAULT core_plugin $NEUTRON_CORE_PLUGIN
@@ -58,17 +66,19 @@ function configure_os10_fe_networking_neutron_agent {
 }
 
 function start_os10_fe_networking_neutron_agent {
-    run_process os10-neutronagt-leaf1 "$OS10_FE_NETWORKING_BIN_DIR/os10-fe-neutron-agent --config-file $NEUTRON_CONF --config-file $NEUTRON_CORE_PLUGIN_CONF --config-file $OS10_FE_CONF_FILE_LEAF1"
-    run_process os10-neutronagt-leaf2 "$OS10_FE_NETWORKING_BIN_DIR/os10-fe-neutron-agent --config-file $NEUTRON_CONF --config-file $NEUTRON_CORE_PLUGIN_CONF --config-file $OS10_FE_CONF_FILE_LEAF2"
-    run_process os10-neutronagt-spine1 "$OS10_FE_NETWORKING_BIN_DIR/os10-fe-neutron-agent --config-file $NEUTRON_CONF --config-file $NEUTRON_CORE_PLUGIN_CONF --config-file $OS10_FE_CONF_FILE_SPINE1"
-    run_process os10-neutronagt-spine2 "$OS10_FE_NETWORKING_BIN_DIR/os10-fe-neutron-agent --config-file $NEUTRON_CONF --config-file $NEUTRON_CORE_PLUGIN_CONF --config-file $OS10_FE_CONF_FILE_SPINE2"
+	for config_file in $(get_os10_fe_network_config_files $TOP_DIR/local.conf post-config); do
+		tag=$(basename $config_file | $CONFIG_AWK_CMD -F"." '{print $1}')
+		service="os10-neutronagt-"$tag
+		run_process $service "$OS10_FE_NETWORKING_BIN_DIR/os10-fe-neutron-agent --config-file $NEUTRON_CONF --config-file $NEUTRON_CORE_PLUGIN_CONF --config-file $config_file"
+    done
 }
 
 function stop_os10_fe_networking_neutron_agent {
-    stop_process os10-neutronagt-leaf1
-    stop_process os10-neutronagt-leaf2
-    stop_process os10-neutronagt-spine1
-    stop_process os10-neutronagt-spine2
+    for config_file in $(get_os10_fe_network_config_files $TOP_DIR/local.conf post-config); do
+        tag=$(basename $config_file | $AWK_CONFIG_CMD -F"." '{print $1}')
+        service="os10-neutronagt-"$tag
+		stop_process $service
+    done
 }
 
 function cleanup_os10_fe_networking {
