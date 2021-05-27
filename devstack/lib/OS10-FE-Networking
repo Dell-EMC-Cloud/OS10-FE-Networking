@@ -34,8 +34,8 @@ function install_os10_fe_networking {
 
 
 function get_os10_fe_network_config_files {
-	local file=$1
-	local matchgroup=$2
+    local file=$1
+    local matchgroup=$2
 
     for configfile in $(get_meta_section_files $file $matchgroup); do
         if [ -z $(eval "echo $configfile | grep $OS10_FE_CONF_DIR") ]; then
@@ -48,15 +48,15 @@ function get_os10_fe_network_config_files {
 
 
 function configure_os10_fe_networking {
-	sudo install -d -o $STACK_USER $OS10_FE_CONF_DIR
+    sudo install -d -o $STACK_USER $OS10_FE_CONF_DIR
 
-	(cd $OS10_FE_NETWORKING_DIR && exec oslo-config-generator --config-file ./tools/config/os10-fe-networking-config-generator.conf)
+    (cd $OS10_FE_NETWORKING_DIR && exec oslo-config-generator --config-file ./tools/config/os10-fe-networking-config-generator.conf)
 
-	for config_file in $(get_os10_fe_network_config_files $TOP_DIR/local.conf post-config); do
-		cp $OS10_FE_NETWORKING_DIR/os10_fe.conf.sample $config_file
-	done
+    for config_file in $(get_os10_fe_network_config_files $TOP_DIR/local.conf post-config); do
+        cp $OS10_FE_NETWORKING_DIR/os10_fe.conf.sample $config_file
+    done
 
-	NEUTRON_CORE_PLUGIN='os10_ml2'
+    NEUTRON_CORE_PLUGIN='os10_ml2'
     iniset $NEUTRON_CONF DEFAULT core_plugin $NEUTRON_CORE_PLUGIN
 }
 
@@ -66,10 +66,10 @@ function configure_os10_fe_networking_neutron_agent {
 }
 
 function start_os10_fe_networking_neutron_agent {
-	for config_file in $(get_os10_fe_network_config_files $TOP_DIR/local.conf post-config); do
-		tag=$(basename $config_file | $CONFIG_AWK_CMD -F"." '{print $1}')
-		service="os10-neutronagt-"$tag
-		run_process $service "$OS10_FE_NETWORKING_BIN_DIR/os10-fe-neutron-agent --config-file $NEUTRON_CONF --config-file $NEUTRON_CORE_PLUGIN_CONF --config-file $config_file"
+    for config_file in $(get_os10_fe_network_config_files $TOP_DIR/local.conf post-config); do
+        tag=$(basename $config_file | $CONFIG_AWK_CMD -F"." '{print $1}')
+        service="os10-neutronagt-"$tag
+        run_process $service "$OS10_FE_NETWORKING_BIN_DIR/os10-fe-neutron-agent --config-file $NEUTRON_CONF --config-file $NEUTRON_CORE_PLUGIN_CONF --config-file $config_file"
     done
 }
 
@@ -77,7 +77,7 @@ function stop_os10_fe_networking_neutron_agent {
     for config_file in $(get_os10_fe_network_config_files $TOP_DIR/local.conf post-config); do
         tag=$(basename $config_file | $AWK_CONFIG_CMD -F"." '{print $1}')
         service="os10-neutronagt-"$tag
-		stop_process $service
+        stop_process $service
     done
 }
 
