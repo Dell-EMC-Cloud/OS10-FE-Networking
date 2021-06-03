@@ -75,7 +75,7 @@ function start_os10_fe_networking_neutron_agent {
 
 function stop_os10_fe_networking_neutron_agent {
     for config_file in $(get_os10_fe_network_config_files $TOP_DIR/local.conf post-config); do
-        tag=$(basename $config_file | $AWK_CONFIG_CMD -F"." '{print $1}')
+        tag=$(basename $config_file | $CONFIG_AWK_CMD -F"." '{print $1}')
         service="os10-neutronagt-"$tag
         stop_process $service
     done
