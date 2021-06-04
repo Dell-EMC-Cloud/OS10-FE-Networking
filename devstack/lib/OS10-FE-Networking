@@ -32,7 +32,6 @@ function install_os10_fe_networking {
     setup_develop $OS10_FE_NETWORKING_DIR
 }
 
-
 function get_os10_fe_network_config_files {
     local file=$1
     local matchgroup=$2
@@ -45,7 +44,6 @@ function get_os10_fe_network_config_files {
     done
 
 }
-
 
 function configure_os10_fe_networking {
     sudo install -d -o $STACK_USER $OS10_FE_CONF_DIR
@@ -71,6 +69,14 @@ function start_os10_fe_networking_neutron_agent {
         service="os10-neutronagt-"$tag
         run_process $service "$OS10_FE_NETWORKING_BIN_DIR/os10-fe-neutron-agent --config-file $NEUTRON_CONF --config-file $NEUTRON_CORE_PLUGIN_CONF --config-file $config_file"
     done
+}
+
+function create_os10_fe_networks {
+    (cd $TOP_DIR/powerscale-scripts && ./prov-net.sh create && ./mgmt-net.sh create)
+}
+
+function delete_os10_fe_networks {
+    (cd $TOP_DIR/powerscale-scripts && ./prov-net.sh delete && ./mgmt-net.sh delete)
 }
 
 function stop_os10_fe_networking_neutron_agent {

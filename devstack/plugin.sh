@@ -20,11 +20,17 @@ if is_service_enabled os10_fe_networking; then
         configure_os10_fe_networking
         echo_summary "Configuring OS10 FE Networking Neutron Agent"
         configure_os10_fe_networking_neutron_agent
+    elif [[ "$1" == "stack" && "$2" == "extra" ]]; then
         echo_summary "Starting OS10 FE Networking Neutron Agent"
         start_os10_fe_networking_neutron_agent
+    elif [[ "$1" == "stack" && "$2" == "test-config" ]]; then
+        echo_summary "Creating OS10 FE Networks"
+        create_os10_fe_networks
     fi
 
     if [[ "$1" == "unstack" ]]; then
+        echo_summary "Deleting OS10 FE Networks"
+        delete_os10_fe_networks
         echo_summary "Cleaning OS10 FE Networking Ml2"
         cleanup_os10_fe_networking
         echo_summary "Cleaning Networking Baremtal Neutron Agent"
