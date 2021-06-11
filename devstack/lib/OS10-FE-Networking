@@ -23,7 +23,9 @@ OS10_FE_NETWORKING_BRANCH_DATA_DIR=""$DATA_DIR/OS10-FE-Networking""
 OS10_FE_NETWORKING_BIN_DIR=$(get_python_exec_prefix)
 
 OS10_FE_CONF_DIR=${OS10_FE_CONF_DIR:-/etc/neutron/plugins/os10_fe}
-
+POWERSCALE_SCRIPTS_DIR=${POWERSCALE_SCRIPTS_DIR:-powerscale-scripts}
+POWERSCALE_INVENTORY_DIR=${POWERSCALE_INVENTORY_DIR:-$DATA_DIR/ironic/inventory}
+Q_POWERSCALE_ENROLL_MODE=${Q_POWERSCALE_ENROLL_MODE:-port-channel}
 
 # Functions
 # ---------
@@ -72,11 +74,32 @@ function start_os10_fe_networking_neutron_agent {
 }
 
 function create_os10_fe_networks {
-    (cd $TOP_DIR/powerscale-scripts && ./prov-net.sh create && ./mgmt-net.sh create)
+    (cd $TOP_DIR/$POWERSCALE_SCRIPTS_DIR && ./prov-net.sh create && ./mgmt-net.sh create)
 }
 
 function delete_os10_fe_networks {
-    (cd $TOP_DIR/powerscale-scripts && ./prov-net.sh delete && ./mgmt-net.sh delete)
+    (cd $TOP_DIR/$POWERSCALE_SCRIPTS_DIR && ./prov-net.sh delete && ./mgmt-net.sh delete)
+}
+
+function create_baremetal_inventory {
+    sudo install -d -o $STACK_USER $POWERSCALE_INVENTORY_DIR
+    (cp $TOP_DIR/$POWERSCALE_SCRIPTS_DIR/inventory/* $POWERSCALE_INVENTORY_DIR)
+}
+
+function manage_baremetal_nodes {
+    local op=$1
+
+    enroll_script=port-channel-enroll.sh
+    enroll_script=onefs-node-enroll.sh
+    [[ "port-channel" == "$Q_POWERSCALE_ENROLL_MODE" ]] && enroll_script=port-channel-enroll.sh
+
+    cd $POWERSCALE_INVENTORY_DIR || return
+    for node in *; do
+        [[ -e "$node" ]] || break
+        service_tag=$(echo "$node" | $CONFIG_AWK_CMD -F"." '{print $1}')
+        (cd $TOP_DIR/$POWERSCALE_SCRIPTS_DIR && ./$enroll_script $op $service_tag)
+        cd $POWERSCALE_INVENTORY_DIR || return
+    done
 }
 
 function stop_os10_fe_networking_neutron_agent {
