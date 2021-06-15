@@ -33,13 +33,13 @@ if is_service_enabled os10_fe_networking; then
     fi
 
     if [[ "$1" == "unstack" ]]; then
-        echo_summary "Disenrolling PowerScale Nodes"
-        manage_baremetal_nodes delete
+        #echo_summary "Disenrolling PowerScale Nodes"
+        #manage_baremetal_nodes delete
         echo_summary "Deleting OS10 FE Networks"
         delete_os10_fe_networks
         echo_summary "Cleaning OS10 FE Networking Ml2"
         cleanup_os10_fe_networking
-        echo_summary "Cleaning Networking Baremtal Neutron Agent"
+        echo_summary "Cleaning OS10 FE Networking Neutron Agent"
         stop_os10_fe_networking_neutron_agent
     fi
 fi
