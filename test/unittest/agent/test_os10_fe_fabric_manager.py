@@ -1,14 +1,12 @@
 import json
-import os
 from unittest import TestCase
 
-import requests
 import requests_mock
 from oslo_config import cfg
 
 from os10_fe_networking.agent.os10_fe_fabric_manager import LeafManager, OS10FEFabricManager
 from os10_fe_networking.agent.rest_conf.common import Copy
-from os10_fe_networking.agent.rest_conf.interface import PortChannelInterface, Interface, VLanInterface
+from os10_fe_networking.agent.rest_conf.interface import Interface
 
 CONF = cfg.CONF
 CONF.import_group("FRONTEND_SWITCH_FABRIC", "os10_fe_networking.agent.config")

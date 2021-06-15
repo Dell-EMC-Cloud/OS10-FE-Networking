@@ -1,10 +1,10 @@
-import sys
-from oslo_config import cfg
-
-from os10_fe_networking.agent.os10_fe_fabric_manager import LeafManager, OS10FEFabricManager
 import logging
+import sys
 from http.client import HTTPConnection  # py3
 
+from oslo_config import cfg
+
+from os10_fe_networking.agent.os10_fe_fabric_manager import OS10FEFabricManager
 
 log = logging.getLogger('urllib3')
 log.setLevel(logging.DEBUG)

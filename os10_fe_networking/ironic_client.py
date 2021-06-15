@@ -10,11 +10,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from keystoneauth1 import loading
 import openstack
+import tenacity
+from keystoneauth1 import loading
 from oslo_config import cfg
 from oslo_log import log as logging
-import tenacity
 
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)

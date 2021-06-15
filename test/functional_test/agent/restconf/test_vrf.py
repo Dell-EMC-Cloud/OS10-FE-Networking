@@ -1,6 +1,7 @@
-from os10_fe_networking.agent.os10_fe_restconf_client import OS10FERestConfClient
 import logging
 from http.client import HTTPConnection  # py3
+
+from os10_fe_networking.agent.os10_fe_restconf_client import OS10FERestConfClient
 
 log = logging.getLogger('urllib3')
 log.setLevel(logging.DEBUG)

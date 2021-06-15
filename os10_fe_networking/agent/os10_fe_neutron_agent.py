@@ -9,7 +9,7 @@ eventlet.monkey_patch()
 
 # oslo_messaging/notify/listener.py documents that monkeypatching is required
 from os10_fe_networking.agent.config import switch_opts
-from os10_fe_networking.agent.os10_fe_fabric_manager import LeafManager, OS10FEFabricManager
+from os10_fe_networking.agent.os10_fe_fabric_manager import OS10FEFabricManager
 
 from neutron.agent import rpc as agent_rpc
 from neutron.common import config as common_config

@@ -1,14 +1,14 @@
 import requests
+from oslo_log import log as logging
 from requests import status_codes
 from requests.auth import HTTPBasicAuth
-from oslo_log import log as logging
 
 from os10_fe_networking.agent.rest_conf.border_gateway_protocol import BorderGatewayProtocol
 from os10_fe_networking.agent.rest_conf.common import Copy
-from os10_fe_networking.agent.rest_conf.port_group import PortGroup
-from os10_fe_networking.agent.rest_conf.virtual_route_forwarding import IPVirtualRouteForwarding
 from os10_fe_networking.agent.rest_conf.interface import VLanInterface, PortChannelInterface, EthernetInterface, \
     Interface
+from os10_fe_networking.agent.rest_conf.port_group import PortGroup
+from os10_fe_networking.agent.rest_conf.virtual_route_forwarding import IPVirtualRouteForwarding
 
 LOG = logging.getLogger(__name__)
 

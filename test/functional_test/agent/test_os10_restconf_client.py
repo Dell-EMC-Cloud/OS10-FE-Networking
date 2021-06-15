@@ -1,7 +1,7 @@
-from os10_fe_networking.agent.os10_fe_restconf_client import OS10FERestConfClient
 import logging
 from http.client import HTTPConnection  # py3
 
+from os10_fe_networking.agent.os10_fe_restconf_client import OS10FERestConfClient
 from os10_fe_networking.agent.rest_conf.border_gateway_protocol import *
 from os10_fe_networking.agent.rest_conf.interface import VVRPGroup, VLanInterface, PortChannelInterface, \
     EthernetInterface

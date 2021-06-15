@@ -2,9 +2,6 @@ import json
 import os
 from unittest import TestCase
 
-import requests
-import requests_mock
-
 from os10_fe_networking.agent.rest_conf.interface import VLanInterface, VVRPGroup, PortChannelInterface
 
 

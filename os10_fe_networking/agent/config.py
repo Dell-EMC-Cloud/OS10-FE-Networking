@@ -1,6 +1,5 @@
-from oslo_config import cfg
-
 from neutron._i18n import _
+from oslo_config import cfg
 
 grp = cfg.OptGroup('FRONTEND_SWITCH_FABRIC')
 

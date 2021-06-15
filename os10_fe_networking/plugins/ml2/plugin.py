@@ -1,22 +1,22 @@
-from neutron.plugins.ml2.plugin import Ml2Plugin
-from neutron.plugins.ml2 import rpc
-from neutron.plugins.ml2 import db
-from neutron.plugins.ml2 import driver_context
-from neutron.api.rpc.handlers import securitygroups_rpc
-from neutron.api.rpc.handlers import dvr_rpc
 from neutron.api.rpc.handlers import dhcp_rpc
+from neutron.api.rpc.handlers import dvr_rpc
 from neutron.api.rpc.handlers import metadata_rpc
 from neutron.api.rpc.handlers import resources_rpc
+from neutron.api.rpc.handlers import securitygroups_rpc
 from neutron.common import utils
+from neutron.db import agents_db
+from neutron.db import models_v2
+from neutron.plugins.ml2 import db
+from neutron.plugins.ml2 import driver_context
+from neutron.plugins.ml2 import rpc
+from neutron.plugins.ml2.plugin import Ml2Plugin
 from neutron_lib import constants as const
+from neutron_lib.api.definitions import portbindings
 from neutron_lib.db import api as db_api
 from neutron_lib.plugins import directory
 from neutron_lib.plugins import utils as p_utils
-from neutron_lib.api.definitions import portbindings
-from neutron.db import models_v2
-from neutron.db import agents_db
-from sqlalchemy.orm import exc as sa_exc
 from oslo_log import log
+from sqlalchemy.orm import exc as sa_exc
 
 LOG = log.getLogger(__name__)
 

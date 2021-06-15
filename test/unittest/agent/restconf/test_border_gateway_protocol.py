@@ -1,5 +1,6 @@
-from unittest import TestCase
 import json
+from unittest import TestCase
+
 from os10_fe_networking.agent.rest_conf.border_gateway_protocol import *
 
 
