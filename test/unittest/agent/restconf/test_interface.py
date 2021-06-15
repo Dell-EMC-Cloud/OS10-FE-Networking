@@ -65,27 +65,27 @@ class TestVLanInterface(TestCase):
         vlan_interface = VLanInterface(vlan_id="3002",
                                        desc="Isilon-FrontEnd-Cluster2",
                                        enabled=True,
-                                       port_channel="123",
-                                       port_channel_mode=VLanInterface.PortChannelMode.ACCESS)
+                                       port="port-channel123",
+                                       port_mode=VLanInterface.PortMode.ACCESS)
         prettyPrint(vlan_interface.content())
 
     def test_vlan_interface_vlan_trunk_allowed(self):
         vlan_interface = VLanInterface(vlan_id="3002",
                                        desc="Isilon-FrontEnd-Cluster2",
                                        enabled=True,
-                                       port_channel="123",
-                                       port_channel_mode=VLanInterface.PortChannelMode.TRUNK)
+                                       port="port-channel123",
+                                       port_mode=VLanInterface.PortMode.TRUNK)
         prettyPrint(vlan_interface.content())
 
         vlan_interface = VLanInterface(vlan_id="3002,3004,3008-3100",
                                        desc="Isilon-FrontEnd-Cluster2",
                                        enabled=True,
-                                       port_channel="123",
-                                       port_channel_mode=VLanInterface.PortChannelMode.TRUNK)
+                                       port="port-channel123",
+                                       port_mode=VLanInterface.PortMode.TRUNK)
         prettyPrint(vlan_interface.content())
 
     def test_vlan_interface_with_ethernet_interface(self):
-        vlan_interface = VLanInterface("1", ethernet_if="1/1/2")
+        vlan_interface = VLanInterface("1", port="ethernet1/1/2", port_mode=VLanInterface.PortMode.TRUNK)
         prettyPrint(vlan_interface.content())
 
     def test_port_channel_interface(self):
@@ -137,15 +137,3 @@ class TestVLanInterface(TestCase):
         port_channel = PortChannelInterface(channel_id="103", ethernet_if="1/1/3")
         prettyPrint(port_channel.content())
 
-    def test_123(self):
-        all_interfaces = read_file_data("all_interfaces_spine1.json", "./")
-        # prettyPrint(all_interfaces)
-
-        with requests_mock.Mocker() as m:
-            m.get('http://test.com', json=all_interfaces, status_code=200)
-            resp = requests.get('http://test.com')
-            # prettyPrint(resp.json())
-            lst = PortChannelInterface.handle_get_all(resp)
-
-            lst.sort(key=lambda e: int(e["name"][12:]))
-            prettyPrint(lst)

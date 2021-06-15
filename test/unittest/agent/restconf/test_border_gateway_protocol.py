@@ -130,5 +130,3 @@ class TestBorderGatewayProtocol(TestCase):
         content = bgp.content()
         prettyPrint(content)
 
-    def test_content(self):
-        self.fail()
