@@ -1,0 +1,126 @@
+@startuml
+package os10_fe_networking.agent {
+    Interface <|-up- VLanInterface : < inherit
+    Interface <|-up- PortChannelInterface: < inherit
+    Interface <|-up- EthernetInterface : < inherit
+
+    oslo_service.ServiceBase <|-- OS10FENeutronAgent : < inherit
+    note left of OS10FENeutronAgent : neutron agent facility
+
+    OS10FENeutronAgent *-left-* OS10FERpcCallbacks : > own
+    note right of OS10FERpcCallbacks : callbacks for\nneutron events
+
+    OS10FENeutronAgent *-- SpineManager : > either own
+    note left of SpineManager : instance of\nOS10FEFabricManager
+
+    OS10FENeutronAgent *-- LeafManager : > or own
+    note right of LeafManager : instance of\nOS10FEFabricManager
+
+    OS10FEFabricManager <|-up- SpineManager : < inherit
+    OS10FEFabricManager <|-up- LeafManager : < inherit
+    note right of OS10FEFabricManager : entry point for all switch\nfabric management
+
+    OS10FEFabricManager *-- OS10FERestConfClient : > own
+    note top of OS10FERestConfClient : interface to communicate\nwith OS10 switch via RestConf
+
+    OS10FEFabricManager *-- WriteMemoryCallback : > own
+    OS10FEFabricManagerCallback <|-- WriteMemoryCallback : < inherit
+    OS10FEFabricManager -- VLanInterface : > reference
+    OS10FEFabricManager -- PortChannelInterface : > reference
+    OS10FEFabricManager -- EthernetInterface : > reference
+}
+
+class OS10FENeutronAgent {
+    +fabric_manager
+    +rpc_callbacks
+    +start()
+    +stop()
+}
+
+class oslo_service.ServiceBase {
+    +start()
+    +stop()
+}
+
+class OS10FERpcCallbacks {
+    +port_update()
+    +port_delete()
+    +network_delete()
+}
+
+class OS10FEFabricManager {
+    +client
+    +callbacks
+    +ensure_configuration()
+    +detach_port_from_vlan()
+    +delete_vlan()
+}
+
+class OS10FERestConfClient {
+    -_get()
+    -_post()
+    -_put()
+    -_patch()
+    -_delete()
+    +get_all_interfaces()
+    +configure_vlan()
+    ...()
+}
+
+class Interface {
+    +enabled
+    +desc
+    +content()
+}
+
+class VLanInterface {
+    +port_mode [access|trunk]
+    ...
+}
+
+class PortChannelInterface {
+    +access_vlan_id
+    +trunk_allowed_vlan_ids
+    ...
+}
+
+class EthernetInterface {
+    +channel_group
+    ...
+}
+
+Interface OS10FEFabricManagerCallback {
+    +post_ensure_configuration()
+    ...()
+}
+
+class WriteMemoryCallback {
+    +post_ensure_configuration()
+    ...()
+}
+
+package os10_fe_networking.plugins.ml2 {
+    neutron.plugins.ml2.plugin.Ml2Plugin <|-- OS10Ml2Plugin : < inherit
+    note right of OS10Ml2Plugin : instance of Ml2Plugin\nloaded by neutron server\nExtended for frontend RPC.
+    neutron.plugins.ml2.rpc.RpcCallbacks <|-up- RpcCallbacks : < inherit
+    note right of RpcCallbacks : Extended frontend Rpc interface
+    OS10Ml2Plugin *-- RpcCallbacks : > own
+}
+
+class neutron.plugins.ml2.plugin.Ml2Plugin {
+    +get_frontend_bound_port_contexts()
+}
+
+class OS10Ml2Plugin {
+    +get_frontend_bound_port_contexts()
+}
+
+class neutron.plugins.ml2.rpc.RpcCallbacks {
+    +get_frontend_devices_details_list()
+}
+
+class RpcCallbacks {
+    +get_frontend_devices_details_list()
+}
+
+@enduml
