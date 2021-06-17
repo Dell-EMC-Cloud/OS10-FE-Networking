@@ -15,12 +15,12 @@ end box
 Admin -> "Neutron Server" : create provisioning network
 "Neutron Server" -> "DHCP" : prepare DHCP service for PXE
 "Neutron Server" -> "FE Agent" : bind provisioning port
-"FE Agent" -> "Frontend SF" : ensure provisioning vlan
+"FE Agent" -> "Frontend Switch Fabric" : ensure provisioning vlan
 
 == Management Network ==
 Admin -> "Neutron Server" : create management network
 "Neutron Server" -> "FE Agent" : bind management port
-"FE Agent" -> "Frontend SF" : ensure management vlan
+"FE Agent" -> "Frontend Switch Fabric" : ensure management vlan
 
 == Enroll Node ==
 Admin -> Ironic : create baremetal node with PXE and Redfish configuration
@@ -34,7 +34,10 @@ Admin -> Ironic : update node state to available
 == Deploy Cluster ==
 Admin -> "Neutron Server" : create data network
 "Neutron Server" -> "FE Agent" : bind data port
-"FE Agent" -> "Frontend SF" : ensure data vlan
+"FE Agent" -> "Frontend Switch Fabric" : ensure data vlan
+Ironic -> "Neutron Server" : create provisioning port
+"Neutron Server" -> "FE Agent" : bind provisioning port
+"FE Agent" -> "Frontend Switch Fabric" : ensure provisioning vlan on ethernet interface
 Admin -> Ironic : deploy node
 Ironic -> TFTP : prepare Network Boot Program
 Ironic -> NFS : prepare whole disk image
@@ -45,18 +48,18 @@ Ironic -> "PowerScale Node" : boot via PXE device
 "PowerScale Node" -> "PowerScale Node" : reboot
 Ironic -> "Neutron Server" : switch to tenant network
 "Neutron Server" -> "FE Agent" : unbind provisioning port
-"FE Agent" -> "Frontend SF" : unset vlan on ethernet interface
+"FE Agent" -> "Frontend Switch Fabric" : unset vlan on ethernet interface
 "Neutron Server" -> "FE Agent" : bind management port
 alt use port channel on FSF
-    "FE Agent" -> "Frontend SF" : ensure port channel for ethernet interface and enable access vlan on it
+    "FE Agent" -> "Frontend Switch Fabric" : ensure port channel for ethernet interface and enable access vlan on it
 else use single port on FSF
-    "FE Agent" -> "Frontend SF" : enable access vlan on ethernet interface
+    "FE Agent" -> "Frontend Switch Fabric" : enable access vlan on ethernet interface
 end
 "Neutron Server" -> "FE Agent" : bind data port
 alt use port channel on FSF
-    "FE Agent" -> "Frontend SF" : ensure port channel for ethernet interface and enable trunk vlan on it
+    "FE Agent" -> "Frontend Switch Fabric" : ensure port channel for ethernet interface and enable trunk vlan on it
 else use single port on FSF
-    "FE Agent" -> "Frontend SF" : enable trunk vlan on ethernet interface
+    "FE Agent" -> "Frontend Switch Fabric" : enable trunk vlan on ethernet interface
 end
 
 == Clean up Cluster ==
@@ -64,16 +67,16 @@ Admin -> Ironic : delete baremetal node
 Admin -> "Neutron Server" : delete neutron ports
 "Neutron Server" -> "FE Agent" : delete management and data port
 alt use port channel on FSF
-    "FE Agent" -> "Frontend SF" : delete port channel
+    "FE Agent" -> "Frontend Switch Fabric" : delete port channel
 else use single port on FSF
-    "FE Agent" -> "Frontend SF" : detach vlan from ethernet interface
+    "FE Agent" -> "Frontend Switch Fabric" : detach vlan from ethernet interface
 end
 Admin -> "Neutron Server" : delete data network
 "Neutron Server" -> "FE Agent" : delete data network
-"FE Agent" -> "Frontend SF" : delete vlan for data network
+"FE Agent" -> "Frontend Switch Fabric" : delete vlan for data network
 
 == Clean up Provisioning Network/Management Network  ==
 Admin -> "Neutron Server" : delete provisioning/management network
 "Neutron Server" -> "FE Agent" : delete provisioning/management port
-"FE Agent" -> "Frontend SF" : delete provisioning/management vlan
+"FE Agent" -> "Frontend Switch Fabric" : delete provisioning/management vlan
 @enduml
