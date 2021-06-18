@@ -35,10 +35,10 @@ Admin -> Ironic : update node state to available
 Admin -> "Neutron Server" : create data network
 "Neutron Server" -> "FE Agent" : bind data port
 "FE Agent" -> "Frontend Switch Fabric" : ensure data vlan
+Admin -> Ironic : deploy node
 Ironic -> "Neutron Server" : create provisioning port
 "Neutron Server" -> "FE Agent" : bind provisioning port
 "FE Agent" -> "Frontend Switch Fabric" : ensure provisioning vlan on ethernet interface
-Admin -> Ironic : deploy node
 Ironic -> TFTP : prepare Network Boot Program
 Ironic -> NFS : prepare whole disk image
 Ironic -> "PowerScale Node" : boot via PXE device
